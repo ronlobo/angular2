@@ -1,3 +1,4 @@
+@TestOn('browser')
 library angular2.test.core.linker.security_integration_test;
 
 import 'package:angular2/core.dart' show provide, Injectable, OpaqueToken;

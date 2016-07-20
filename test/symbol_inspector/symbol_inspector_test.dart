@@ -1,3 +1,4 @@
+@TestOn('browser')
 library angular2.test.symbol_inspector.symbol_inspector_test;
 
 import "package:angular2/src/facade/lang.dart" show IS_DART;
