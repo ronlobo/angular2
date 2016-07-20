@@ -11,7 +11,7 @@ main() {
     if (IS_DART) {
       test("should extract symbols (dart)", () {
         var symbols = getSymbolsFromLibrary("simple_library");
-        expect(symbols,[
+        expect(symbols, [
           "A",
           "ClosureParam",
           "ClosureReturn",
@@ -30,7 +30,7 @@ main() {
     } else {
       test("should extract symbols (js)", () {
         var symbols = getSymbolsFromLibrary("simple_library");
-        expect(symbols,[
+        expect(symbols, [
           "A",
           "ClosureParam",
           "ClosureReturn",

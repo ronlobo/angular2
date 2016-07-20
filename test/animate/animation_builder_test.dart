@@ -1,5 +1,4 @@
 @TestOn('browser')
-
 import "package:angular2/src/animate/animation_builder.dart"
     show AnimationBuilder;
 import "package:angular2/src/platform/dom/dom_adapter.dart" show DOM;

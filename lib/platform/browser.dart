@@ -26,8 +26,8 @@ import "package:angular2/src/platform/browser_common.dart"
         BROWSER_PLATFORM_MARKER;
 
 export "package:angular2/src/core/angular_entrypoint.dart";
-export "package:angular2/src/core/security.dart" show SanitizationService,
-    TemplateSecurityContext;
+export "package:angular2/src/core/security.dart"
+    show SanitizationService, TemplateSecurityContext;
 export "package:angular2/src/platform/browser_common.dart"
     show
         BROWSER_PROVIDERS,
