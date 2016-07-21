@@ -1,7 +1,6 @@
 library angular2.src.animate.browser_details;
 
 import "package:angular2/src/core/di.dart" show Injectable;
-import "package:angular2/src/facade/math.dart" show Math;
 import "package:angular2/src/platform/dom/dom_adapter.dart" show DOM;
 
 @Injectable()
@@ -23,7 +22,7 @@ class BrowserDetails {
     // Firefox requires that we wait for 2 frames for some reason
     raf((dynamic timestamp) {
       DOM.on(div, "transitionend", (dynamic event) {
-        var elapsed = Math.round(event.elapsedTime * 1000);
+        var elapsed = (event.elapsedTime * 1000).round();
         elapsedTimeIncludesDelay = elapsed == 2;
         DOM.remove(div);
       });
