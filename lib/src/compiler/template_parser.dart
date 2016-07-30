@@ -1,5 +1,3 @@
-library angular2.src.compiler.template_parser;
-
 import "package:angular2/core.dart"
     show Injectable, Inject, OpaqueToken, Optional;
 import "package:angular2/src/compiler/schema/element_schema_registry.dart"
@@ -85,27 +83,24 @@ const ATTRIBUTE_PREFIX = "attr";
 const CLASS_PREFIX = "class";
 const STYLE_PREFIX = "style";
 final TEXT_CSS_SELECTOR = CssSelector.parse("*")[0];
-/**
- * Provides an array of [TemplateAstVisitor]s which will be used to transform
- * parsed templates before compilation is invoked, allowing custom expression syntax
- * and other advanced transformations.
- *
- * This is currently an internal-only feature and not meant for general use.
- */
+
+/// Provides an array of [TemplateAstVisitor]s which will be used to transform
+/// parsed templates before compilation is invoked, allowing custom expression syntax
+/// and other advanced transformations.
+///
+/// This is currently an internal-only feature and not meant for general use.
 const TEMPLATE_TRANSFORMS = const OpaqueToken("TemplateTransforms");
 
 class TemplateParseError extends ParseError {
   TemplateParseError(
       String message, ParseSourceSpan span, ParseErrorLevel level)
-      : super(span, message, level) {
-    /* super call moved to initializer */;
-  }
+      : super(span, message, level);
 }
 
 class TemplateParseResult {
   List<TemplateAst> templateAst;
   List<ParseError> errors;
-  TemplateParseResult([this.templateAst, this.errors]) {}
+  TemplateParseResult([this.templateAst, this.errors]);
 }
 
 @Injectable()
@@ -115,30 +110,29 @@ class TemplateParser {
   HtmlParser _htmlParser;
   Console _console;
   List<TemplateAstVisitor> transforms;
+
   TemplateParser(this._exprParser, this._schemaRegistry, this._htmlParser,
       this._console, @Optional() @Inject(TEMPLATE_TRANSFORMS) this.transforms);
+
   List<TemplateAst> parse(
       CompileDirectiveMetadata component,
       String template,
       List<CompileDirectiveMetadata> directives,
       List<CompilePipeMetadata> pipes,
       String templateUrl) {
-    var result =
-        this.tryParse(component, template, directives, pipes, templateUrl);
+    var result = tryParse(component, template, directives, pipes, templateUrl);
     var warnings = result.errors
         .where((error) => identical(error.level, ParseErrorLevel.WARNING))
         .toList();
     var errors = result.errors
         .where((error) => identical(error.level, ParseErrorLevel.FATAL))
         .toList();
-    if (warnings.length > 0) {
-      this._console.warn('''Template parse warnings:
-${ warnings . join ( "\n" )}''');
+    if (warnings.isNotEmpty) {
+      _console.warn('Template parse warnings:\n${warnings.join("\n")}');
     }
-    if (errors.length > 0) {
+    if (errors.isNotEmpty) {
       var errorString = errors.join("\n");
-      throw new BaseException('''Template parse errors:
-${ errorString}''');
+      throw new BaseException('Template parse errors:\n$errorString');
     }
     return result.templateAst;
   }
@@ -157,8 +151,13 @@ ${ errorString}''');
       var uniqPipes = removeDuplicates(pipes);
       var providerViewContext = new ProviderViewContext(
           component, htmlAstWithErrors.rootNodes[0].sourceSpan);
-      var parseVisitor = new TemplateParseVisitor(providerViewContext,
-          uniqDirectives, uniqPipes, this._exprParser, this._schemaRegistry);
+      var parseVisitor = new TemplateParseVisitor(
+          providerViewContext,
+          uniqDirectives,
+          uniqPipes,
+          this._exprParser,
+          this._schemaRegistry,
+          component.template?.preserveWhitespace ?? false);
       result = htmlVisitAll(
               parseVisitor, htmlAstWithErrors.rootNodes, EMPTY_ELEMENT_CONTEXT)
           as List<TemplateAst>;
@@ -189,12 +188,15 @@ class TemplateParseVisitor implements HtmlAstVisitor {
   var directivesIndex = new Map<CompileDirectiveMetadata, num>();
   num ngContentCount = 0;
   Map<String, CompilePipeMetadata> pipesByName;
+  final bool preserveWhitespace;
+
   TemplateParseVisitor(
       this.providerViewContext,
       List<CompileDirectiveMetadata> directives,
       List<CompilePipeMetadata> pipes,
       this._exprParser,
-      this._schemaRegistry) {
+      this._schemaRegistry,
+      this.preserveWhitespace) {
     this.selectorMatcher = new SelectorMatcher();
     ListWrapper.forEachWithIndex(directives,
         (CompileDirectiveMetadata directive, num index) {
@@ -300,8 +302,27 @@ class TemplateParseVisitor implements HtmlAstVisitor {
     if (expr != null) {
       return new BoundTextAst(expr, ngContentIndex, ast.sourceSpan);
     } else {
-      return new TextAst(ast.value, ngContentIndex, ast.sourceSpan);
+      String text = ast.value;
+      // If preserve white space is turned off, filter out spaces after line
+      // breaks and any empty text nodes.
+      if (preserveWhitespace == false) {
+        if (text.isEmpty) return null;
+        if (_isNewLineWithSpaces(text)) {
+          text = '\n';
+        }
+      }
+      return new TextAst(text, ngContentIndex, ast.sourceSpan);
     }
+  }
+
+  bool _isNewLineWithSpaces(String text) {
+    if (text.length <= 1) return false;
+    if (text[0] != '\n') return false;
+    int len = text.length;
+    for (int i = 1; i < len; i++) {
+      if (text[i] != ' ') return false;
+    }
+    return true;
   }
 
   dynamic visitAttr(HtmlAttrAst ast, dynamic context) {
@@ -504,12 +525,11 @@ class TemplateParseVisitor implements HtmlAstVisitor {
         targetVars
             .add(new VariableAst(binding.key, binding.name, attr.sourceSpan));
       } else if (binding.expression != null) {
-        this._parsePropertyAst(binding.key, binding.expression,
-            attr.sourceSpan, targetMatchableAttrs, targetProps);
+        this._parsePropertyAst(binding.key, binding.expression, attr.sourceSpan,
+            targetMatchableAttrs, targetProps);
       } else {
         targetMatchableAttrs.add([binding.key, ""]);
-        this._parseLiteralAttr(
-            binding.key, null, attr.sourceSpan, targetProps);
+        this._parseLiteralAttr(binding.key, null, attr.sourceSpan, targetProps);
       }
     }
     return true;
@@ -829,8 +849,8 @@ class TemplateParseVisitor implements HtmlAstVisitor {
     var parts = name.split(PROPERTY_PARTS_SEPARATOR);
     if (identical(parts.length, 1)) {
       boundPropertyName = this._schemaRegistry.getMappedPropName(parts[0]);
-      securityContext = this._schemaRegistry.securityContext(elementName,
-          boundPropertyName);
+      securityContext =
+          this._schemaRegistry.securityContext(elementName, boundPropertyName);
       bindingType = PropertyBindingType.Property;
       if (!this._schemaRegistry.hasProperty(elementName, boundPropertyName)) {
         this._reportError(
@@ -842,9 +862,11 @@ class TemplateParseVisitor implements HtmlAstVisitor {
       if (parts[0] == ATTRIBUTE_PREFIX) {
         boundPropertyName = parts[1];
         if (boundPropertyName.toLowerCase().startsWith('on')) {
-          _reportError('Binding to event attribute \'${boundPropertyName}\' '
+          _reportError(
+              'Binding to event attribute \'${boundPropertyName}\' '
               'is disallowed for security reasons, please use '
-              '(${boundPropertyName.substring(2)})=...', sourceSpan);
+              '(${boundPropertyName.substring(2)})=...',
+              sourceSpan);
         }
         // NB: For security purposes, use the mapped property name, not the
         // attribute name.

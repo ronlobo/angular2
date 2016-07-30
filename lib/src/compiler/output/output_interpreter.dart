@@ -1,5 +1,3 @@
-library angular2.src.compiler.output.output_interpreter;
-
 import "package:angular2/src/core/reflection/reflection.dart" show reflector;
 import "package:angular2/src/facade/async.dart" show ObservableWrapper;
 import "package:angular2/src/facade/collection.dart" show ListWrapper;
@@ -365,7 +363,9 @@ class StatementInterpreter implements o.StatementVisitor, o.ExpressionVisitor {
   }
 
   dynamic visitExternalExpr(o.ExternalExpr ast, dynamic context) {
-    return ast.value.runtime;
+    return ast.value.runtimeCallback != null
+        ? ast.value.runtimeCallback()
+        : ast.value.runtime;
   }
 
   dynamic visitConditionalExpr(o.ConditionalExpr ast, dynamic context) {

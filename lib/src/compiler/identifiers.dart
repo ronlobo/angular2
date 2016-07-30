@@ -1,5 +1,3 @@
-library angular2.src.compiler.identifiers;
-
 import "package:angular2/src/core/change_detection/change_detection.dart"
     show
         uninitialized,
@@ -59,11 +57,10 @@ var VIEW_UTILS_MODULE_URL =
 var CD_MODULE_URL =
     "asset:angular2/lib/src/core/change_detection/change_detection" +
         MODULE_SUFFIX;
-// Reassign the imports to different variables so we can
 
+// Reassign the imports to different variables so we can
 // define static variables with the name of the import.
 
-// (only needed for Dart).
 var impViewUtils = ViewUtils;
 var impAppView = AppView;
 var impDebugAppView = DebugAppView;
@@ -91,6 +88,7 @@ var impChangeDetectorState = ChangeDetectorState;
 var impFlattenNestedViewRenderNodes = flattenNestedViewRenderNodes;
 var impDevModeEqual = devModeEqual;
 var impInterpolate0 = interpolate0;
+var impThrowOnChanges = () => ViewUtils.throwOnChanges;
 var impInterpolate = interpolate;
 var impCheckBinding = checkBinding;
 var impCastByValue = castByValue;
@@ -192,8 +190,7 @@ class Identifiers {
       runtime: impDebugContext);
   static var TemplateSecurityContext = new CompileIdentifierMetadata(
       name: 'TemplateSecurityContext',
-      moduleUrl:
-          'asset:angular2/lib/src/core/security${ MODULE_SUFFIX}',
+      moduleUrl: 'asset:angular2/lib/src/core/security${ MODULE_SUFFIX}',
       runtime: impTemplateSecurityContext);
   static var Renderer = new CompileIdentifierMetadata(
       name: "Renderer",
@@ -219,8 +216,13 @@ class Identifiers {
       runtime: impFlattenNestedViewRenderNodes);
   static var devModeEqual = new CompileIdentifierMetadata(
       name: "devModeEqual", moduleUrl: CD_MODULE_URL, runtime: impDevModeEqual);
+
   /// String interpolation where prefix,suffix are empty
   /// (most common case).
+  static var throwOnChanges = new CompileIdentifierMetadata(
+      name: "ViewUtils.throwOnChanges",
+      moduleUrl: VIEW_UTILS_MODULE_URL,
+      runtimeCallback: impThrowOnChanges);
   static var interpolate0 = new CompileIdentifierMetadata(
       name: "interpolate0",
       moduleUrl: VIEW_UTILS_MODULE_URL,

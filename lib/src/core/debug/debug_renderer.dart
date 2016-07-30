@@ -1,5 +1,3 @@
-library angular2.src.core.debug.debug_renderer;
-
 import "package:angular2/src/core/debug/debug_node.dart"
     show
         DebugNode,
@@ -151,11 +149,6 @@ class DebugDomRenderer implements Renderer {
 
   setElementStyle(dynamic renderElement, String styleName, String styleValue) {
     this._delegate.setElementStyle(renderElement, styleName, styleValue);
-  }
-
-  invokeElementMethod(
-      dynamic renderElement, String methodName, List<dynamic> args) {
-    this._delegate.invokeElementMethod(renderElement, methodName, args);
   }
 
   setText(dynamic renderNode, String text) {

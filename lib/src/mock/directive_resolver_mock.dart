@@ -1,5 +1,3 @@
-library angular2.src.mock.directive_resolver_mock;
-
 import "package:angular2/src/compiler/directive_resolver.dart"
     show DirectiveResolver;
 import "package:angular2/src/core/di.dart" show Injectable;
@@ -38,6 +36,7 @@ class MockDirectiveResolver extends DirectiveResolver {
           moduleId: dm.moduleId,
           queries: dm.queries,
           changeDetection: dm.changeDetection,
+          preserveWhitespace: dm.preserveWhitespace,
           providers: providers,
           viewProviders: viewProviders);
     }

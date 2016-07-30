@@ -1,7 +1,3 @@
-library angular2.src.core.di.metadata;
-
-import "package:angular2/src/facade/lang.dart" show stringify;
-
 /**
  * A parameter metadata that specifies a dependency.
  *
@@ -45,8 +41,13 @@ import "package:angular2/src/facade/lang.dart" show stringify;
 class InjectMetadata {
   final token;
   const InjectMetadata(this.token);
-  String toString() {
-    return '''@Inject(${ stringify ( this . token )})''';
+  String toString() => '@Inject(${tokenToString(token)})';
+
+  static String tokenToString(token) {
+    RegExp funcMatcher = new RegExp(r"from Function '(\w+)'");
+    String tokenStr = token.toString();
+    var match = funcMatcher.firstMatch(tokenStr);
+    return (match != null) ? match.group(1) : tokenStr;
   }
 }
 
@@ -72,11 +73,11 @@ class InjectMetadata {
  * ```
  */
 class OptionalMetadata {
-  String toString() {
-    return '''@Optional()''';
-  }
-
   const OptionalMetadata();
+
+  String toString() {
+    return '@Optional()';
+  }
 }
 
 /**
@@ -84,11 +85,9 @@ class OptionalMetadata {
  * This is internal to Angular and should not be used directly.
  */
 class DependencyMetadata {
-  get token {
-    return null;
-  }
-
   const DependencyMetadata();
+
+  get token => null;
 }
 
 /**
@@ -154,11 +153,11 @@ class InjectableMetadata {
  * ```
  */
 class SelfMetadata {
-  String toString() {
-    return '''@Self()''';
-  }
-
   const SelfMetadata();
+
+  String toString() {
+    return '@Self()';
+  }
 }
 
 /**
@@ -187,11 +186,11 @@ class SelfMetadata {
  * ```
  */
 class SkipSelfMetadata {
-  String toString() {
-    return '''@SkipSelf()''';
-  }
-
   const SkipSelfMetadata();
+
+  String toString() {
+    return '@SkipSelf()';
+  }
 }
 
 /**
@@ -249,9 +248,7 @@ class SkipSelfMetadata {
  *```
  */
 class HostMetadata {
-  String toString() {
-    return '''@Host()''';
-  }
-
   const HostMetadata();
+
+  String toString() => '@Host()';
 }

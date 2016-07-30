@@ -1,5 +1,3 @@
-library angular2.dom.htmlAdapter;
-
 import 'dart:io';
 
 import 'package:angular2/platform/common_dom.dart';
@@ -33,11 +31,6 @@ class Html5LibDomAdapter extends AbstractHtml5LibAdapter {
 
   @override
   getProperty(Element element, String name) {
-    throw new UnimplementedError();
-  }
-
-  @override
-  invoke(Element element, String methodName, List args) {
     throw new UnimplementedError();
   }
 

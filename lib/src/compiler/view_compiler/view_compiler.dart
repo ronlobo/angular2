@@ -1,5 +1,3 @@
-library angular2.src.compiler.view_compiler.view_compiler;
-
 import "package:angular2/src/core/di.dart" show Injectable;
 
 import "../compile_metadata.dart"
@@ -33,8 +31,8 @@ class ViewCompiler {
     var view = new CompileView(component, this._genConfig, pipes, styles, 0,
         CompileElement.createNull(), []);
     buildView(view, template, dependencies);
-    // Need to separate binding from creation to be able to refer to
 
+    // Need to separate binding from creation to be able to refer to
     // variables that have been declared after usage.
     bindView(view, template);
     finishView(view, statements);

@@ -1,5 +1,3 @@
-library angular2.src.compiler.view_compiler.expression_converter;
-
 import "package:angular2/src/facade/exceptions.dart" show BaseException;
 import "package:angular2/src/facade/lang.dart" show isBlank, isPresent, isArray;
 
@@ -174,11 +172,14 @@ class _AstToIrVisitor implements cdAst.AstVisitor {
   dynamic visitInterpolation(cdAst.Interpolation ast, dynamic context) {
     _Mode mode = context;
     ensureExpressionMode(mode, ast);
+
     /// Handle most common case where prefix and postfix are empty.
-    if (ast.expressions.length == 1 && ast.strings[0].isEmpty &&
+    if (ast.expressions.length == 1 &&
+        ast.strings[0].isEmpty &&
         ast.strings[1].isEmpty) {
-      var args = <o.Expression>[ast.expressions[0]
-          .visit(this, _Mode.Expression)];
+      var args = <o.Expression>[
+        ast.expressions[0].visit(this, _Mode.Expression)
+      ];
       return o.importExpr(Identifiers.interpolate0).callFn(args);
     } else {
       var args = [o.literal(ast.expressions.length)];

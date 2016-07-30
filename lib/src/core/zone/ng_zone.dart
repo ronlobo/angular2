@@ -1,8 +1,5 @@
-library angular2.src.core.zone.ng_zone;
-
 import "package:angular2/src/facade/async.dart" show EventEmitter;
 
-import "../../facade/exceptions.dart" show BaseException;
 import "ng_zone_impl.dart" show NgZoneImpl, NgZoneError;
 
 export "ng_zone_impl.dart" show NgZoneError;
@@ -85,13 +82,13 @@ class NgZone {
 
   static void assertInAngularZone() {
     if (!NgZoneImpl.isInAngularZone()) {
-      throw new BaseException("Expected to be in Angular Zone, but it is not!");
+      throw new Exception("Expected to be in Angular Zone, but it is not!");
     }
   }
 
   static void assertNotInAngularZone() {
     if (NgZoneImpl.isInAngularZone()) {
-      throw new BaseException("Expected to not be in Angular Zone, but it is!");
+      throw new Exception("Expected to not be in Angular Zone, but it is!");
     }
   }
 

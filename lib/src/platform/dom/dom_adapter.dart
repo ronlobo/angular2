@@ -1,33 +1,23 @@
-library angular2.src.platform.dom.dom_adapter;
-
-import "package:angular2/src/facade/lang.dart" show isBlank, Type;
-
+/// Singleton adapter used by renderer layer.
 DomAdapter DOM = null;
 setRootDomAdapter(DomAdapter adapter) {
-  if (isBlank(DOM)) {
-    DOM = adapter;
-  }
+  DOM ??= adapter;
 }
-/* tslint:disable:requireParameterType */
 
-/**
- * Provides DOM operations in an environment-agnostic way.
- */
+/// Provides DOM operations in an environment-agnostic way.
 abstract class DomAdapter<T, N, ET> {
   bool hasProperty(T element, String name);
   setProperty(T element, String name, dynamic value);
   dynamic getProperty(T element, String name);
-  dynamic invoke(T element, String methodName, List<dynamic> args);
   logError(error);
   log(error);
   logGroup(error);
   logGroupEnd();
-  /**  */
+
   Type getXHR();
-  /**
-   * Maps attribute names to their corresponding property names for cases
-   * where attribute name doesn't match property name.
-   */
+
+  /// Maps attribute names to their corresponding property names for cases
+  /// where attribute name doesn't match property name.
   Map<String, String> get attrToPropMap {
     return this._attrToPropMap;
   }
@@ -36,7 +26,6 @@ abstract class DomAdapter<T, N, ET> {
     this._attrToPropMap = value;
   }
 
-  /** @internal */
   Map<String, String> _attrToPropMap;
   parse(String templateHtml);
   dynamic query(String selector);

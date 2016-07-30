@@ -1,5 +1,3 @@
-library angular2.src.compiler.output.interpretive_view;
-
 import "package:angular2/src/core/linker/debug_context.dart"
     show StaticNodeDebugInfo;
 import "package:angular2/src/core/linker/element.dart" show AppElement;
@@ -88,12 +86,12 @@ class _InterpretiveAppView extends DebugAppView<dynamic>
     }
   }
 
-  void detectChangesInternal(bool throwOnChange) {
-    var m = this.methods["detectChangesInternal"];
-    if (isPresent(m)) {
-      return m(throwOnChange);
+  void detectChangesInternal() {
+    var m = methods["detectChangesInternal"];
+    if (m != null) {
+      return m();
     } else {
-      return super.detectChangesInternal(throwOnChange);
+      return super.detectChangesInternal();
     }
   }
 }

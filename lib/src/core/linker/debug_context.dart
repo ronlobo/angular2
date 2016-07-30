@@ -1,5 +1,3 @@
-library angular2.src.core.linker.debug_context;
-
 import "package:angular2/src/core/di.dart" show Injector;
 import "package:angular2/src/core/render/api.dart" show RenderDebugInfo;
 import "package:angular2/src/facade/collection.dart"
@@ -71,17 +69,14 @@ class DebugContext implements RenderDebugInfo {
   }
 
   String get source {
-    return '''${ this . _view . componentType . templateUrl}:${ this . _tplRow}:${ this . _tplCol}''';
+    return '${_view.componentType.templateUrl}:${_tplRow}:${_tplCol}';
   }
 
   Map<String, String> get locals {
     Map<String, String> varValues = {};
     // TODO(tbosch): right now, the semantics of debugNode.locals are
-
     // that it contains the variables of all elements, not just
-
     // the given one. We preserve this for now to not have a breaking
-
     // change, but should change this later!
     ListWrapper.forEachWithIndex(this._view.staticNodeDebugInfos,
         (StaticNodeDebugInfo staticNodeInfo, num nodeIndex) {

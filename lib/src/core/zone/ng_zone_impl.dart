@@ -1,8 +1,6 @@
-library angular.zone;
-
 import 'dart:async';
 
-import 'package:stack_trace/stack_trace.dart' show Chain;
+import 'package:stack_trace/stack_trace.dart';
 
 typedef void ZeroArgFunction();
 typedef void ErrorHandlingFn(error, stackTrace);

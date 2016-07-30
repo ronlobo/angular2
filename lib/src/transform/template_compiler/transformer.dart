@@ -1,5 +1,3 @@
-library angular2.transform.template_compiler.transformer;
-
 import 'dart:async';
 
 import 'package:angular2/i18n.dart';
@@ -84,4 +82,4 @@ class TemplateCompiler extends Transformer implements LazyTransformer {
   }
 }
 
-const _emptyNgDepsContents = 'initReflector() {}\n';
+const _emptyNgDepsContents = 'void initReflector() {}\n';

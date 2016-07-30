@@ -1,5 +1,3 @@
-library angular2.src.core.metadata;
-
 import 'package:angular2/src/core/change_detection/change_detection.dart';
 import 'package:angular2/src/facade/collection.dart' show List;
 
@@ -70,6 +68,7 @@ class Component extends ComponentMetadata {
       ChangeDetectionStrategy changeDetection,
       String templateUrl,
       String template,
+      bool preserveWhitespace,
       dynamic directives,
       dynamic pipes,
       ViewEncapsulation encapsulation,
@@ -92,6 +91,7 @@ class Component extends ComponentMetadata {
             changeDetection: changeDetection,
             templateUrl: templateUrl,
             template: template,
+            preserveWhitespace: preserveWhitespace,
             directives: directives,
             pipes: pipes,
             encapsulation: encapsulation,

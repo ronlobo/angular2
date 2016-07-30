@@ -1,5 +1,3 @@
-library angular2.src.compiler.view_compiler.property_binder;
-
 import "package:angular2/src/core/change_detection/constants.dart"
     show isDefaultChangeDetectionStrategy;
 import "package:angular2/src/core/metadata/lifecycle_hooks.dart"
@@ -12,10 +10,10 @@ import "../identifiers.dart" show Identifiers;
 import "../output/output_ast.dart" as o;
 import "../template_ast.dart"
     show
-    BoundTextAst,
-    BoundElementPropertyAst,
-    DirectiveAst,
-    PropertyBindingType;
+        BoundTextAst,
+        BoundElementPropertyAst,
+        DirectiveAst,
+        PropertyBindingType;
 import "../util.dart" show camelCaseToDashCase;
 import "expression_converter.dart" show convertCdExpressionToIr;
 import "compile_binding.dart" show CompileBinding;
@@ -25,11 +23,11 @@ import "compile_view.dart" show CompileView;
 import "constants.dart" show DetectChangesVars, ViewProperties;
 
 o.ReadPropExpr createBindFieldExpr(num exprIndex) {
-  return o.THIS_EXPR.prop('''_expr_${ exprIndex}''');
+  return o.THIS_EXPR.prop('_expr_${ exprIndex}');
 }
 
 o.ReadVarExpr createCurrValueExpr(num exprIndex) {
-  return o.variable('''currVal_${ exprIndex}''');
+  return o.variable('currVal_${ exprIndex}');
 }
 
 void bind(
@@ -60,9 +58,8 @@ void bind(
   method.addStmt(currValExpr
       .set(checkExpression.expression)
       .toDeclStmt(null, [o.StmtModifier.Final]));
-  o.Expression condition = o
-      .importExpr(Identifiers.checkBinding)
-      .callFn([DetectChangesVars.throwOnChange, fieldExpr, currValExpr]);
+  o.Expression condition =
+      o.importExpr(Identifiers.checkBinding).callFn([fieldExpr, currValExpr]);
   if (checkExpression.needsValueUnwrapper) {
     condition =
         DetectChangesVars.valUnwrapper.prop("hasWrappedValue").or(condition);
@@ -142,12 +139,12 @@ bindAndWriteToRenderer(List<BoundElementPropertyAst> boundProps,
   });
 }
 
-o.Expression sanitizedValue(BoundElementPropertyAst boundProp,
-    o.Expression renderValue) {
+o.Expression sanitizedValue(
+    BoundElementPropertyAst boundProp, o.Expression renderValue) {
   String methodName;
   switch (boundProp.securityContext) {
     case TemplateSecurityContext.none:
-      return renderValue;  // No sanitization needed.
+      return renderValue; // No sanitization needed.
     case TemplateSecurityContext.html:
       methodName = 'sanitizeHtml';
       break;
@@ -170,7 +167,6 @@ o.Expression sanitizedValue(BoundElementPropertyAst boundProp,
   var ctx = ViewProperties.viewUtils.prop('sanitizer');
   return ctx.callMethod(methodName, [renderValue]);
 }
-
 
 void bindRenderInputs(
     List<BoundElementPropertyAst> boundProps, CompileElement compileElement) {
@@ -254,7 +250,7 @@ o.Statement logBindingUpdateStmt(
     o.Expression renderNode, String propName, o.Expression value) {
   return o.THIS_EXPR.prop("renderer").callMethod("setBindingDebugInfo", [
     renderNode,
-    o.literal('''ng-reflect-${ camelCaseToDashCase ( propName )}'''),
+    o.literal('ng-reflect-${ camelCaseToDashCase ( propName )}'),
     value.isBlank().conditional(o.NULL_EXPR, value.callMethod("toString", []))
   ]).toStmt();
 }

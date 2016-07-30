@@ -1,5 +1,3 @@
-library angular2.src.core.linker.view;
-
 import "package:angular2/src/core/change_detection/change_detection.dart"
     show ChangeDetectorRef, ChangeDetectionStrategy, ChangeDetectorState;
 import "package:angular2/src/core/di.dart" show Injector;
@@ -236,7 +234,7 @@ abstract class AppView<T> {
    * Overwritten by implementations
    */
   void dirtyParentQueriesInternal() {}
-  void detectChanges(bool throwOnChange) {
+  void detectChanges() {
     var s = _scope_check(this.clazz);
     if (identical(this.cdMode, ChangeDetectionStrategy.Detached) ||
         identical(this.cdMode, ChangeDetectionStrategy.Checked) ||
@@ -244,7 +242,7 @@ abstract class AppView<T> {
     if (this.destroyed) {
       this.throwDestroyedError("detectChanges");
     }
-    this.detectChangesInternal(throwOnChange);
+    this.detectChangesInternal();
     if (identical(this.cdMode, ChangeDetectionStrategy.CheckOnce))
       this.cdMode = ChangeDetectionStrategy.Checked;
     this.cdState = ChangeDetectorState.CheckedBefore;
@@ -254,20 +252,21 @@ abstract class AppView<T> {
   /**
    * Overwritten by implementations
    */
-  void detectChangesInternal(bool throwOnChange) {
-    this.detectContentChildrenChanges(throwOnChange);
-    this.detectViewChildrenChanges(throwOnChange);
+  void detectChangesInternal() {
+    this.detectContentChildrenChanges();
+    this.detectViewChildrenChanges();
   }
 
-  detectContentChildrenChanges(bool throwOnChange) {
+  detectContentChildrenChanges() {
     for (var i = 0; i < this.contentChildren.length; ++i) {
-      this.contentChildren[i].detectChanges(throwOnChange);
+      this.contentChildren[i].detectChanges();
     }
   }
 
-  detectViewChildrenChanges(bool throwOnChange) {
-    for (var i = 0; i < this.viewChildren.length; ++i) {
-      this.viewChildren[i].detectChanges(throwOnChange);
+  detectViewChildrenChanges() {
+    int len = viewChildren.length;
+    for (var i = 0; i < len; ++i) {
+      viewChildren[i].detectChanges();
     }
   }
 
@@ -361,10 +360,10 @@ class DebugAppView<T> extends AppView<T> {
     }
   }
 
-  void detectChanges(bool throwOnChange) {
+  void detectChanges() {
     this._resetDebug();
     try {
-      super.detectChanges(throwOnChange);
+      super.detectChanges();
     } catch (e, e_stack) {
       this._rethrowWithContext(e, e_stack);
       rethrow;

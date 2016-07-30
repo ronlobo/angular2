@@ -1,11 +1,10 @@
-library angular2.src.core.application_ref;
-
 import "dart:async";
 
 import "package:angular2/src/core/change_detection/change_detector_ref.dart"
     show ChangeDetectorRef;
 import "package:angular2/src/core/console.dart" show Console;
 import "package:angular2/src/core/di.dart" show Provider, Injector, Injectable;
+import "package:angular2/src/core/linker/view_utils.dart" show ViewUtils;
 import "package:angular2/src/core/linker/component_factory.dart"
     show ComponentRef;
 import "package:angular2/src/core/linker/component_factory.dart"
@@ -21,7 +20,7 @@ import "package:angular2/src/facade/collection.dart" show ListWrapper;
 import "package:angular2/src/facade/exceptions.dart"
     show BaseException, ExceptionHandler;
 import "package:angular2/src/facade/lang.dart"
-    show Type, isBlank, isPresent, assertionsEnabled, isPromise;
+    show isBlank, isPresent, assertionsEnabled, isPromise;
 
 import "application_tokens.dart" show PLATFORM_INITIALIZER, APP_INITIALIZER;
 import "profile/profile.dart" show wtfLeave, wtfCreateScope, WtfScopeFn;
@@ -39,13 +38,13 @@ bool _inPlatformCreate = false;
  * Creates a platform.
  * Platforms have to be eagerly created via this function.
  */
-PlatformRef createPlatform(Injector injector) {
+PlatformRef_ createPlatform(Injector injector) {
   if (_inPlatformCreate) {
     throw new BaseException("Already creating a platform...");
   }
-  if (isPresent(_platform) && !_platform.disposed) {
-    throw new BaseException(
-        "There can be only one platform. Destroy the previous one to create a new one.");
+  if (_platform != null && !_platform.disposed) {
+    throw new BaseException('There can be only one platform. Destroy the '
+        'previous one to create a new one.');
   }
   _inPlatformCreate = true;
   try {
@@ -151,7 +150,7 @@ class PlatformRef_ extends PlatformRef {
   List<Function> _disposeListeners = [];
   bool _disposed = false;
   Injector _injector;
-  init(Injector injector) {
+  void init(Injector injector) {
     if (!_inPlatformCreate) {
       throw new BaseException(
           "Platforms have to be initialized via `createPlatform`!");
@@ -159,7 +158,7 @@ class PlatformRef_ extends PlatformRef {
     this._injector = injector;
     List<Function> inits =
         (injector.get(PLATFORM_INITIALIZER, null) as List<Function>);
-    if (isPresent(inits)) inits.forEach((init) => init());
+    inits?.forEach((init) => init());
   }
 
   void registerDisposeListener(void dispose()) {
@@ -434,6 +433,7 @@ class ApplicationRef_ extends ApplicationRef {
   }
 
   void tick() {
+    ViewUtils.resetChangeDetection();
     if (this._runningTick) {
       throw new BaseException("ApplicationRef.tick is called recursively");
     }

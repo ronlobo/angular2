@@ -1,5 +1,3 @@
-library angular2.src.compiler.template_ast;
-
 import 'expression_parser/ast.dart' show AST;
 import 'compile_metadata.dart'
     show
@@ -13,6 +11,7 @@ import '../core/security.dart';
 abstract class TemplateAst {
   /// The source span from which this node was parsed.
   ParseSourceSpan sourceSpan;
+
   /// Visit this node and possibly transform it.
   dynamic visit(TemplateAstVisitor visitor, dynamic context);
 }
@@ -224,10 +223,13 @@ class NgContentAst implements TemplateAst {
 enum PropertyBindingType {
   /// A normal binding to a property (e.g. [property]='expression').
   Property,
+
   /// A binding to an element attribute (e.g. [attr.name]='expression').
   Attribute,
+
   /// A binding to a CSS class (e.g. [class.name]='condition').
   Class,
+
   /// A binding to a style rule (e.g. [style.rule]='expression').
   Style
 }

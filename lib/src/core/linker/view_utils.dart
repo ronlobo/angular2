@@ -1,5 +1,3 @@
-library angular2.src.core.linker.view_utils;
-
 import "package:angular2/src/core/application_tokens.dart" show APP_ID;
 import "package:angular2/src/core/change_detection/change_detection.dart"
     show devModeEqual, uninitialized;
@@ -22,6 +20,13 @@ class ViewUtils {
   RootRenderer _renderer;
   String _appId;
   num _nextCompTypeId = 0;
+
+  /// Whether change detection should throw an exception when a change is
+  /// detected.
+  ///
+  /// Latency sensitive! Used by checkBinding during change detection.
+  static bool throwOnChanges = false;
+  static int _throwOnChangesCounter = 0;
   SanitizationService sanitizer;
 
   ViewUtils(this._renderer, @Inject(APP_ID) this._appId, this.sanitizer) {}
@@ -42,6 +47,31 @@ class ViewUtils {
 
   Renderer renderComponent(RenderComponentType renderComponentType) {
     return this._renderer.renderComponent(renderComponentType);
+  }
+
+  /// Enters execution mode that will throw exceptions if any binding
+  /// has been updated since last change detection cycle.
+  ///
+  /// Used by Developer mode and Test beds to validate that bindings are
+  /// stable.
+  static void enterThrowOnChanges() {
+    _throwOnChangesCounter++;
+    throwOnChanges = true;
+  }
+
+  /// Exits change detection check mode.
+  ///
+  /// Used by Developer mode and Test beds to validate that bindings are
+  /// stable.
+  static void exitThrowOnChanges() {
+    _throwOnChangesCounter--;
+    throwOnChanges = _throwOnChangesCounter != 0;
+  }
+
+  /// Used in tests that cause exceptions on purpose.
+  static void resetChangeDetection() {
+    _throwOnChangesCounter = 0;
+    throwOnChanges = false;
   }
 }
 
@@ -221,8 +251,8 @@ String _toStringWithNull(dynamic v) {
   return v != null ? v.toString() : "";
 }
 
-bool checkBinding(bool throwOnChange, dynamic oldValue, dynamic newValue) {
-  if (throwOnChange) {
+bool checkBinding(dynamic oldValue, dynamic newValue) {
+  if (ViewUtils.throwOnChanges) {
     if (!devModeEqual(oldValue, newValue)) {
       throw new ExpressionChangedAfterItHasBeenCheckedException(
           oldValue, newValue, null);

@@ -11,9 +11,6 @@
  * explicitly.
  *
  */
-library angular2.src.common.forms;
-
-import "package:angular2/src/facade/lang.dart" show Type;
 
 import "forms/directives/radio_control_value_accessor.dart"
     show RadioControlRegistry;

@@ -1,5 +1,3 @@
-library angular2.dom.abstractHtmlAdapter;
-
 import 'package:angular2/platform/common_dom.dart';
 import 'package:angular2/src/compiler/xhr.dart';
 import 'package:html/dom.dart';
@@ -23,8 +21,6 @@ abstract class AbstractHtml5LibAdapter
   void setProperty(Element element, String name, Object value);
 
   getProperty(Element element, String name);
-
-  invoke(Element element, String methodName, List args);
 
   @override
   get attrToPropMap => _attrToPropMap;

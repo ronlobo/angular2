@@ -1,5 +1,3 @@
-library angular2.src.compiler.provider_parser;
-
 import "package:angular2/src/facade/collection.dart" show ListWrapper;
 import "package:angular2/src/facade/exceptions.dart" show BaseException;
 import "package:angular2/src/facade/lang.dart" show isPresent, isBlank, isArray;
@@ -360,7 +358,7 @@ ${ errorString}''');
     }
     if (isPresent(this._seenProviders.get(token))) {
       this._errors.add(new ProviderError(
-          '''Cannot instantiate cyclic dependency! ${ token . name}''',
+          'Cannot instantiate cyclic dependency! ${token.name}',
           this._sourceSpan));
       return null;
     }

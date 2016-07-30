@@ -1,5 +1,3 @@
-library angular2.src.compiler.output.ts_emitter;
-
 import "package:angular2/src/facade/exceptions.dart" show BaseException;
 import "package:angular2/src/facade/lang.dart" show isPresent, isArray;
 
@@ -30,7 +28,7 @@ String debugOutputAstAsTypeScript(
       ast.visitStatement(converter, ctx);
     } else if (ast is o.Expression) {
       ast.visitExpression(converter, ctx);
-    } else if (ast is o.Type) {
+    } else if (ast is o.OutputType) {
       ast.visitType(converter, ctx);
     } else {
       throw new BaseException(
@@ -334,7 +332,7 @@ class _TsEmitterVisitor extends AbstractEmitterVisitor
   }
 
   void _visitIdentifier(CompileIdentifierMetadata value,
-      List<o.Type> typeParams, EmitterVisitorContext ctx) {
+      List<o.OutputType> typeParams, EmitterVisitorContext ctx) {
     if (isPresent(value.moduleUrl) && value.moduleUrl != this._moduleUrl) {
       var prefix = this.importsWithPrefixes[value.moduleUrl];
       if (prefix == null) {
