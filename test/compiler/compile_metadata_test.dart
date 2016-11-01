@@ -1,14 +1,14 @@
 library angular2.test.compiler.compile_metadata_test;
 
 import "package:angular2/src/compiler/compile_metadata.dart";
-import "package:angular2/src/core/metadata/view.dart" show ViewEncapsulation;
 import "package:angular2/src/core/change_detection.dart"
     show ChangeDetectionStrategy;
 import "package:angular2/src/core/metadata/lifecycle_hooks.dart"
     show LifecycleHooks;
+import "package:angular2/src/core/metadata/view.dart" show ViewEncapsulation;
 import 'package:test/test.dart';
 
-main() {
+void main() {
   group("CompileMetadata", () {
     CompileTypeMetadata fullTypeMeta;
     CompileTemplateMetadata fullTemplateMeta;
@@ -121,7 +121,7 @@ main() {
             empty.toJson());
       });
     });
-    group("DirectiveMetadata", () {
+    group("Directive", () {
       test("should serialize with full data", () {
         expect(
             CompileDirectiveMetadata
@@ -162,6 +162,11 @@ main() {
         var empty = new CompileTemplateMetadata();
         expect(CompileTemplateMetadata.fromJson(empty.toJson()).toJson(),
             empty.toJson());
+      });
+    });
+    group("Pipe", () {
+      test("should be pure by default", () {
+        expect(new CompilePipeMetadata().pure, isTrue);
       });
     });
   });

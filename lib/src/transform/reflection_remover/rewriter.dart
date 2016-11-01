@@ -1,4 +1,5 @@
-import 'package:analyzer/src/generated/ast.dart';
+import 'package:analyzer/dart/ast/ast.dart';
+import 'package:analyzer/dart/ast/visitor.dart';
 import 'package:angular2/src/transform/common/logging.dart';
 import 'package:angular2/src/transform/common/mirror_matcher.dart';
 import 'package:angular2/src/transform/common/mirror_mode.dart';
@@ -166,7 +167,7 @@ class _RewriterVisitor extends Object with RecursiveAstVisitor<Object> {
     return '$buf';
   }
 
-  _rewriteBootstrapImportToStatic(ImportDirective node) {
+  void _rewriteBootstrapImportToStatic(ImportDirective node) {
     if (_rewriter._writeStaticInit) {
       // rewrite bootstrap import to its static version.
       buf.write(_rewriter._code.substring(_currentIndex, node.offset));
@@ -219,7 +220,7 @@ class _RewriterVisitor extends Object with RecursiveAstVisitor<Object> {
     _currentIndex = node.end;
   }
 
-  _rewriteBootstrapCallToStatic(MethodInvocation node) {
+  void _rewriteBootstrapCallToStatic(MethodInvocation node) {
     if (_rewriter._writeStaticInit) {
       buf.write(_rewriter._code.substring(_currentIndex, node.offset));
 
@@ -263,7 +264,7 @@ class _RewriterVisitor extends Object with RecursiveAstVisitor<Object> {
     return _rewriter._codegen.codegenSetupReflectionCall();
   }
 
-  _rewriteReflectionCapabilitiesImport(ImportDirective node) {
+  void _rewriteReflectionCapabilitiesImport(ImportDirective node) {
     buf.write(_rewriter._code.substring(_currentIndex, node.offset));
     if ('${node.prefix}' == _rewriter._codegen.prefix) {
       log.warning(
@@ -278,7 +279,8 @@ class _RewriterVisitor extends Object with RecursiveAstVisitor<Object> {
     _currentIndex = node.end;
   }
 
-  _rewriteReflectionCapabilitiesAssignment(AssignmentExpression assignNode) {
+  void _rewriteReflectionCapabilitiesAssignment(
+      AssignmentExpression assignNode) {
     var node = assignNode;
     while (node.parent is ExpressionStatement) {
       node = node.parent;

@@ -1,31 +1,28 @@
+import "dart:html";
+
 import "package:angular2/src/core/di/decorators.dart" show Injectable;
 import "package:angular2/src/facade/browser.dart" show History, Location;
 import "package:angular2/src/platform/dom/dom_adapter.dart" show DOM;
 
-import "platform_location.dart" show UrlChangeListener, PlatformLocation;
+import "platform_location.dart" show PlatformLocation;
 
-/**
- * `PlatformLocation` encapsulates all of the direct calls to platform APIs.
- * This class should not be used directly by an application developer. Instead, use
- * [Location].
- */
+/// `PlatformLocation` encapsulates all of the direct calls to platform APIs.
+/// This class should not be used directly by an application developer. Instead, use
+/// [Location].
 @Injectable()
 class BrowserPlatformLocation extends PlatformLocation {
   Location _location;
   History _history;
-  BrowserPlatformLocation() : super() {
-    /* super call moved to initializer */;
+  BrowserPlatformLocation() {
     this._init();
   }
   // This is moved to its own method so that `MockPlatformLocationStrategy` can overwrite it
 
-  /** @internal */
-  _init() {
+  void _init() {
     this._location = DOM.getLocation();
     this._history = DOM.getHistory();
   }
 
-  /** @internal */
   Location get location {
     return this._location;
   }
@@ -34,14 +31,14 @@ class BrowserPlatformLocation extends PlatformLocation {
     return DOM.getBaseHref();
   }
 
-  void onPopState(UrlChangeListener fn) {
-    DOM.getGlobalEventTarget("window").addEventListener("popstate", fn, false);
+  @override
+  void onPopState(EventListener fn) {
+    window.addEventListener("popstate", fn, false);
   }
 
-  void onHashChange(UrlChangeListener fn) {
-    DOM
-        .getGlobalEventTarget("window")
-        .addEventListener("hashchange", fn, false);
+  @override
+  void onHashChange(EventListener fn) {
+    window.addEventListener("hashchange", fn, false);
   }
 
   String get pathname {

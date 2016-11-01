@@ -1,33 +1,20 @@
 import "package:angular2/src/core/di.dart" show Injectable;
-import "package:angular2/src/core/metadata.dart"
-    show
-        DirectiveMetadata,
-        ComponentMetadata,
-        InputMetadata,
-        OutputMetadata,
-        HostBindingMetadata,
-        HostListenerMetadata,
-        ContentChildrenMetadata,
-        ViewChildrenMetadata,
-        ContentChildMetadata,
-        ViewChildMetadata;
+import "package:angular2/src/core/metadata.dart";
 import "package:angular2/src/core/reflection/reflection.dart" show reflector;
 import "package:angular2/src/core/reflection/reflector_reader.dart"
     show ReflectorReader;
-import "package:angular2/src/facade/collection.dart"
-    show ListWrapper, StringMapWrapper;
 import "package:angular2/src/facade/exceptions.dart" show BaseException;
 
 bool _isDirectiveMetadata(dynamic type) {
-  return type is DirectiveMetadata;
+  return type is Directive;
 }
 
 class NoDirectiveAnnotationError extends BaseException {
   NoDirectiveAnnotationError(Type type)
-      : super('No Directive annotation found on $type') {}
+      : super('No Directive annotation found on $type');
 }
 
-/// Resolve a [Type] for [DirectiveMetadata].
+/// Resolve a [Type] for [Directive].
 ///
 /// This interface can be overridden by the application developer
 /// to create custom behavior.
@@ -41,8 +28,8 @@ class DirectiveResolver {
     this._reflector = _reflector ?? reflector;
   }
 
-  /// Return [DirectiveMetadata] for a given `Type`.
-  DirectiveMetadata resolve(Type type) {
+  /// Return [Directive] for a given `Type`.
+  Directive resolve(Type type) {
     var typeMetadata = _reflector.annotations(type);
     if (typeMetadata != null) {
       var metadata =
@@ -55,7 +42,7 @@ class DirectiveResolver {
     throw new NoDirectiveAnnotationError(type);
   }
 
-  DirectiveMetadata _mergeWithPropertyMetadata(DirectiveMetadata dm,
+  Directive _mergeWithPropertyMetadata(Directive dm,
       Map<String, List<dynamic>> propertyMetadata, Type directiveType) {
     var inputs = <String>[];
     var outputs = <String>[];
@@ -63,41 +50,41 @@ class DirectiveResolver {
     Map<String, dynamic> queries = {};
     propertyMetadata.forEach((String propName, List<dynamic> metadata) {
       metadata.forEach((a) {
-        if (a is InputMetadata) {
+        if (a is Input) {
           if (a.bindingPropertyName != null) {
             inputs.add('${propName}: ${a.bindingPropertyName}');
           } else {
             inputs.add(propName);
           }
         }
-        if (a is OutputMetadata) {
+        if (a is Output) {
           if (a.bindingPropertyName != null) {
             outputs.add('${propName}: ${a.bindingPropertyName}');
           } else {
             outputs.add(propName);
           }
         }
-        if (a is HostBindingMetadata) {
+        if (a is HostBinding) {
           if (a.hostPropertyName != null) {
             host['[${a.hostPropertyName}]'] = propName;
           } else {
             host['[$propName]'] = propName;
           }
         }
-        if (a is HostListenerMetadata) {
+        if (a is HostListener) {
           var args = a.args?.join(", ") ?? '';
           host['(${a.eventName})'] = '${propName}(${args})';
         }
-        if (a is ContentChildrenMetadata) {
+        if (a is ContentChildren) {
           queries[propName] = a;
         }
-        if (a is ViewChildrenMetadata) {
+        if (a is ViewChildren) {
           queries[propName] = a;
         }
-        if (a is ContentChildMetadata) {
+        if (a is ContentChild) {
           queries[propName] = a;
         }
-        if (a is ViewChildMetadata) {
+        if (a is ViewChild) {
           queries[propName] = a;
         }
       });
@@ -105,15 +92,15 @@ class DirectiveResolver {
     return this._merge(dm, inputs, outputs, host, queries, directiveType);
   }
 
-  DirectiveMetadata _merge(
-      DirectiveMetadata dm,
+  Directive _merge(
+      Directive dm,
       List<String> inputs,
       List<String> outputs,
       Map<String, String> host,
       Map<String, dynamic> queries,
       Type directiveType) {
     List<String> mergedInputs =
-        dm.inputs != null ? ListWrapper.concat(dm.inputs, inputs) : inputs;
+        dm.inputs != null ? (new List.from(dm.inputs)..addAll(inputs)) : inputs;
     List<String> mergedOutputs;
     if (dm.outputs != null) {
       dm.outputs.forEach((String propName) {
@@ -123,17 +110,16 @@ class DirectiveResolver {
               "in '${directiveType}'");
         }
       });
-      mergedOutputs = ListWrapper.concat(dm.outputs, outputs);
+      mergedOutputs = new List.from(dm.outputs)..addAll(outputs);
     } else {
       mergedOutputs = outputs;
     }
-    var mergedHost =
-        dm.host != null ? StringMapWrapper.merge(dm.host, host) : host;
-    var mergedQueries = dm.queries != null
-        ? StringMapWrapper.merge(dm.queries, queries)
-        : queries;
-    if (dm is ComponentMetadata) {
-      return new ComponentMetadata(
+    var mergedHost = new Map<String, String>.from(dm.host ?? const {});
+    mergedHost.addAll(host);
+    var mergedQueries = new Map<String, dynamic>.from(dm.queries ?? const {});
+    mergedQueries.addAll(queries);
+    if (dm is Component) {
+      return new Component(
           selector: dm.selector,
           inputs: mergedInputs,
           outputs: mergedOutputs,
@@ -146,7 +132,7 @@ class DirectiveResolver {
           viewProviders: dm.viewProviders,
           preserveWhitespace: dm.preserveWhitespace);
     } else {
-      return new DirectiveMetadata(
+      return new Directive(
           selector: dm.selector,
           inputs: mergedInputs,
           outputs: mergedOutputs,

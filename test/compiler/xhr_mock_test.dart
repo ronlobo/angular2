@@ -2,13 +2,12 @@
 library angular2.test.compiler.xhr_mock_test;
 
 import "dart:async";
-import "package:angular2/testing_internal.dart";
+
 import "package:angular2/src/compiler/xhr_mock.dart" show MockXHR;
-import "package:angular2/src/facade/async.dart" show PromiseWrapper;
-import "package:angular2/src/facade/lang.dart" show isPresent;
+import "package:angular2/testing_internal.dart";
 import 'package:test/test.dart';
 
-main() {
+void main() {
   group("MockXHR", () {
     MockXHR xhr;
     setUp(() {
@@ -21,21 +20,24 @@ main() {
           throw '''Unexpected response ${ url} -> ${ text}''';
         } else {
           expect(text, response);
-          if (isPresent(done)) done();
+          if (done != null) done();
         }
         return text;
       }
+
       String onError(String error) {
         if (!identical(response, null)) {
           throw '''Unexpected error ${ url}''';
         } else {
           expect(error, '''Failed to load ${ url}''');
-          if (isPresent(done)) done();
+          if (done != null) done();
         }
         return error;
       }
-      PromiseWrapper.then(request, onResponse, onError);
+
+      request.then(onResponse, onError: onError);
     }
+
     test("should return a response from the definitions", () async {
       return inject([AsyncTestCompleter], (AsyncTestCompleter completer) {
         var url = "/foo";
@@ -48,9 +50,8 @@ main() {
     test("should return an error from the definitions", () async {
       return inject([AsyncTestCompleter], (AsyncTestCompleter completer) {
         var url = "/foo";
-        var response = null;
-        xhr.when(url, response);
-        expectResponse(xhr.get(url), url, response, () => completer.done());
+        xhr.when(url, null);
+        expectResponse(xhr.get(url), url, null, () => completer.done());
         xhr.flush();
       });
     });
@@ -66,9 +67,8 @@ main() {
     test("should return an error from the expectations", () async {
       return inject([AsyncTestCompleter], (AsyncTestCompleter completer) {
         var url = "/foo";
-        var response = null;
-        xhr.expect(url, response);
-        expectResponse(xhr.get(url), url, response, () => completer.done());
+        xhr.expect(url, null);
+        expectResponse(xhr.get(url), url, null, () => completer.done());
         xhr.flush();
       });
     });

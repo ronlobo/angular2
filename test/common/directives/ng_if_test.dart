@@ -1,13 +1,13 @@
-@TestOn('browser')
+@TestOn('browser && !js')
 library angular2.test.common.directives.ng_if_spec;
 
-import "package:angular2/testing_internal.dart";
-import "package:angular2/src/platform/dom/dom_adapter.dart" show DOM;
-import "package:angular2/core.dart" show Component;
 import "package:angular2/common.dart" show NgIf;
+import "package:angular2/core.dart" show Component;
+import "package:angular2/src/platform/dom/dom_adapter.dart" show DOM;
+import "package:angular2/testing_internal.dart";
 import 'package:test/test.dart';
 
-main() {
+void main() {
   group("ngIf directive", () {
     test("should work in a template attribute", () async {
       return inject([TestComponentBuilder, AsyncTestCompleter],

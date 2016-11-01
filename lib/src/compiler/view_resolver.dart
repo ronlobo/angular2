@@ -1,33 +1,28 @@
 import "package:angular2/src/core/di.dart" show Injectable;
-import "package:angular2/src/core/metadata/directives.dart"
-    show ComponentMetadata;
-import "package:angular2/src/core/metadata/view.dart" show ViewMetadata;
+import "package:angular2/src/core/metadata.dart" show Component;
+import "package:angular2/src/core/metadata.dart" show View;
 import "package:angular2/src/core/reflection/reflection.dart" show reflector;
 import "package:angular2/src/core/reflection/reflector_reader.dart"
     show ReflectorReader;
-import "package:angular2/src/facade/collection.dart" show Map;
 import "package:angular2/src/facade/exceptions.dart" show BaseException;
-import "package:angular2/src/facade/lang.dart"
-    show stringify, isBlank, isPresent;
+import "package:angular2/src/facade/lang.dart" show stringify;
 
-/**
- * Resolves types to [ViewMetadata].
- */
+/// Resolves types to [View].
 @Injectable()
 class ViewResolver {
   ReflectorReader _reflector;
   /** @internal */
-  var _cache = new Map<Type, ViewMetadata>();
+  var _cache = new Map<Type, View>();
   ViewResolver([ReflectorReader _reflector]) {
-    if (isPresent(_reflector)) {
+    if (_reflector != null) {
       this._reflector = _reflector;
     } else {
       this._reflector = reflector;
     }
   }
-  ViewMetadata resolve(Type component) {
+  View resolve(Type component) {
     var view = this._cache[component];
-    if (isBlank(view)) {
+    if (view == null) {
       view = this._resolve(component);
       this._cache[component] = view;
     }
@@ -35,41 +30,41 @@ class ViewResolver {
   }
 
   /** @internal */
-  ViewMetadata _resolve(Type component) {
-    ComponentMetadata compMeta;
-    ViewMetadata viewMeta;
+  View _resolve(Type component) {
+    Component compMeta;
+    View viewMeta;
     this._reflector.annotations(component).forEach((m) {
-      if (m is ViewMetadata) {
+      if (m is View) {
         viewMeta = m;
       }
-      if (m is ComponentMetadata) {
+      if (m is Component) {
         compMeta = m;
       }
     });
-    if (isPresent(compMeta)) {
-      if (isBlank(compMeta.template) &&
-          isBlank(compMeta.templateUrl) &&
-          isBlank(viewMeta)) {
+    if (compMeta != null) {
+      if (compMeta.template == null &&
+          compMeta.templateUrl == null &&
+          viewMeta == null) {
         throw new BaseException(
             '''Component \'${ stringify ( component )}\' must have either \'template\' or \'templateUrl\' set.''');
-      } else if (isPresent(compMeta.template) && isPresent(viewMeta)) {
+      } else if (compMeta.template != null && viewMeta != null) {
         this._throwMixingViewAndComponent("template", component);
-      } else if (isPresent(compMeta.templateUrl) && isPresent(viewMeta)) {
+      } else if (compMeta.templateUrl != null && viewMeta != null) {
         this._throwMixingViewAndComponent("templateUrl", component);
-      } else if (isPresent(compMeta.directives) && isPresent(viewMeta)) {
+      } else if (compMeta.directives != null && viewMeta != null) {
         this._throwMixingViewAndComponent("directives", component);
-      } else if (isPresent(compMeta.pipes) && isPresent(viewMeta)) {
+      } else if (compMeta.pipes != null && viewMeta != null) {
         this._throwMixingViewAndComponent("pipes", component);
-      } else if (isPresent(compMeta.encapsulation) && isPresent(viewMeta)) {
+      } else if (compMeta.encapsulation != null && viewMeta != null) {
         this._throwMixingViewAndComponent("encapsulation", component);
-      } else if (isPresent(compMeta.styles) && isPresent(viewMeta)) {
+      } else if (compMeta.styles != null && viewMeta != null) {
         this._throwMixingViewAndComponent("styles", component);
-      } else if (isPresent(compMeta.styleUrls) && isPresent(viewMeta)) {
+      } else if (compMeta.styleUrls != null && viewMeta != null) {
         this._throwMixingViewAndComponent("styleUrls", component);
-      } else if (isPresent(viewMeta)) {
+      } else if (viewMeta != null) {
         return viewMeta;
       } else {
-        return new ViewMetadata(
+        return new View(
             templateUrl: compMeta.templateUrl,
             template: compMeta.template,
             directives: compMeta.directives,
@@ -79,7 +74,7 @@ class ViewResolver {
             styleUrls: compMeta.styleUrls);
       }
     } else {
-      if (isBlank(viewMeta)) {
+      if (viewMeta == null) {
         throw new BaseException(
             '''Could not compile \'${ stringify ( component )}\' because it is not a component.''');
       } else {

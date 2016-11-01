@@ -1,14 +1,13 @@
-@TestOn('browser')
+@TestOn('browser && !js')
 library angular2.test.common.directives.ng_style_test;
 
-import "package:angular2/testing_internal.dart";
-import "package:angular2/src/facade/collection.dart" show StringMapWrapper;
 import "package:angular2/core.dart" show Component;
-import "package:angular2/src/platform/dom/dom_adapter.dart" show DOM;
 import "package:angular2/src/common/directives/ng_style.dart" show NgStyle;
+import "package:angular2/src/platform/dom/dom_adapter.dart" show DOM;
+import "package:angular2/testing_internal.dart";
 import 'package:test/test.dart';
 
-main() {
+void main() {
   group("binding to CSS styles", () {
     test("should add styles specified in an object literal", () async {
       return inject([TestComponentBuilder, AsyncTestCompleter],
@@ -35,7 +34,7 @@ main() {
         tcb
             .overrideTemplate(TestComponent, template)
             .createAsync(TestComponent)
-            .then((fixture) {
+            .then((ComponentFixture fixture) {
           Map<String, dynamic> expr;
           fixture.debugElement.componentInstance.expr = {"max-width": "40px"};
           fixture.detectChanges();
@@ -43,7 +42,8 @@ main() {
               DOM.getStyle(
                   fixture.debugElement.children[0].nativeElement, "max-width"),
               "40px");
-          expr = fixture.debugElement.componentInstance.expr;
+          expr = fixture.debugElement.componentInstance.expr
+              as Map<String, dynamic>;
           expr["max-width"] = "30%";
           fixture.detectChanges();
           expect(
@@ -69,8 +69,7 @@ main() {
               DOM.getStyle(
                   fixture.debugElement.children[0].nativeElement, "max-width"),
               "40px");
-          StringMapWrapper.delete(
-              fixture.debugElement.componentInstance.expr, "max-width");
+          fixture.debugElement.componentInstance.expr.remove('max-width');
           fixture.detectChanges();
           expect(
               DOM.getStyle(
@@ -99,8 +98,7 @@ main() {
               DOM.getStyle(
                   fixture.debugElement.children[0].nativeElement, "font-size"),
               "12px");
-          StringMapWrapper.delete(
-              fixture.debugElement.componentInstance.expr, "max-width");
+          fixture.debugElement.componentInstance.expr.remove('max-width');
           fixture.detectChanges();
           expect(
               DOM.getStyle(
@@ -135,8 +133,7 @@ main() {
               DOM.getStyle(
                   fixture.debugElement.children[0].nativeElement, "font-size"),
               "12px");
-          StringMapWrapper.delete(
-              fixture.debugElement.componentInstance.expr, "max-width");
+          fixture.debugElement.componentInstance.expr.remove('max-width');
           expect(
               DOM.getStyle(
                   fixture.debugElement.children[0].nativeElement, "font-size"),

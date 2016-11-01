@@ -1,11 +1,6 @@
-import "package:angular2/src/facade/lang.dart"
-    show isPresent, isBlank, normalizeBool, RegExpWrapper;
 // see http://www.w3.org/TR/html51/syntax.html#named-character-references
-
 // see https://html.spec.whatwg.org/multipage/entities.json
-
 // This list is not exhaustive to keep the compiler footprint low.
-
 // The `&#123;` / `&#x1ab;` syntax should be used when the named character reference does not exist.
 const NAMED_ENTITIES = const {
   "Aacute": "Á",
@@ -136,6 +131,7 @@ const NAMED_ENTITIES = const {
   "mu": "μ",
   "nabla": "∇",
   "nbsp": " ",
+  "ngsp": "\uE500", // Space in Unicode PUA.
   "ndash": "–",
   "ne": "≠",
   "ni": "∋",
@@ -280,28 +276,27 @@ class HtmlTagDefinition {
       bool closedByParent,
       bool isVoid,
       bool ignoreFirstLf}) {
-    if (isPresent(closedByChildren) && closedByChildren.length > 0) {
+    if (closedByChildren != null && closedByChildren.length > 0) {
       closedByChildren
           .forEach((tagName) => this.closedByChildren[tagName] = true);
     }
-    this.isVoid = normalizeBool(isVoid);
-    this.closedByParent = normalizeBool(closedByParent) || this.isVoid;
-    if (isPresent(requiredParents) && requiredParents.length > 0) {
+    this.isVoid = isVoid == true;
+    this.closedByParent = closedByParent == true || this.isVoid;
+    if (requiredParents != null && requiredParents.length > 0) {
       this.requiredParents = {};
       this.parentToAdd = requiredParents[0];
       requiredParents
           .forEach((tagName) => this.requiredParents[tagName] = true);
     }
     this.implicitNamespacePrefix = implicitNamespacePrefix;
-    this.contentType =
-        isPresent(contentType) ? contentType : HtmlTagContentType.PARSABLE_DATA;
-    this.ignoreFirstLf = normalizeBool(ignoreFirstLf);
+    this.contentType = contentType ?? HtmlTagContentType.PARSABLE_DATA;
+    this.ignoreFirstLf = ignoreFirstLf == true;
   }
   bool requireExtraParent(String currentParent) {
-    if (isBlank(this.requiredParents)) {
+    if (this.requiredParents == null) {
       return false;
     }
-    if (isBlank(currentParent)) {
+    if (currentParent == null) {
       return true;
     }
     var lcParent = currentParent.toLowerCase();
@@ -309,8 +304,7 @@ class HtmlTagDefinition {
   }
 
   bool isClosedByChild(String name) {
-    return this.isVoid ||
-        normalizeBool(this.closedByChildren[name.toLowerCase()]);
+    return this.isVoid || this.closedByChildren[name.toLowerCase()] == true;
   }
 }
 // see http://www.w3.org/TR/html51/syntax.html#optional-tags
@@ -399,18 +393,18 @@ Map<String, HtmlTagDefinition> TAG_DEFINITIONS = {
   "textarea": new HtmlTagDefinition(
       contentType: HtmlTagContentType.ESCAPABLE_RAW_TEXT, ignoreFirstLf: true)
 };
-var DEFAULT_TAG_DEFINITION = new HtmlTagDefinition();
+final HtmlTagDefinition DEFAULT_TAG_DEFINITION = new HtmlTagDefinition();
 HtmlTagDefinition getHtmlTagDefinition(String tagName) {
   var result = TAG_DEFINITIONS[tagName.toLowerCase()];
-  return isPresent(result) ? result : DEFAULT_TAG_DEFINITION;
+  return result ?? DEFAULT_TAG_DEFINITION;
 }
 
-var NS_PREFIX_RE = new RegExp(r'^@([^:]+):(.+)');
+final RegExp NS_PREFIX_RE = new RegExp(r'^@([^:]+):(.+)');
 List<String> splitNsName(String elementName) {
   if (elementName[0] != "@") {
     return [null, elementName];
   }
-  var match = RegExpWrapper.firstMatch(NS_PREFIX_RE, elementName);
+  var match = NS_PREFIX_RE.firstMatch(elementName);
   return [match[1], match[2]];
 }
 
@@ -419,5 +413,5 @@ String getNsPrefix(String elementName) {
 }
 
 String mergeNsAndName(String prefix, String localName) {
-  return isPresent(prefix) ? '''@${ prefix}:${ localName}''' : localName;
+  return prefix != null ? '''@${ prefix}:${ localName}''' : localName;
 }

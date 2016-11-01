@@ -1,19 +1,20 @@
-@TestOn('browser')
+@TestOn('browser && !js')
 library angular2.test.core.reflection.reflector_test;
 
-import "package:angular2/testing_internal.dart";
 import "package:angular2/core.dart" show OnInit;
 import "package:angular2/src/core/reflection/reflection.dart"
     show Reflector, ReflectionInfo;
 import "package:angular2/src/core/reflection/reflection_capabilities.dart"
     show ReflectionCapabilities;
+import "package:angular2/testing_internal.dart";
+import 'package:test/test.dart';
+
 import "reflector_common.dart"
     show
         ClassDecorator,
         ParamDecorator,
         PropDecorator,
         HasGetterAndSetterDecorators;
-import 'package:test/test.dart';
 
 class AType {
   var value;
@@ -38,7 +39,7 @@ class ClassWithDecorators {
 }
 
 class ClassWithoutDecorators {
-  ClassWithoutDecorators(a, b) {}
+  ClassWithoutDecorators(a, b);
 }
 
 class TestObj {
@@ -48,7 +49,7 @@ class TestObj {
     this.a = a;
     this.b = b;
   }
-  identity(arg) {
+  dynamic identity(arg) {
     return arg;
   }
 }
@@ -76,7 +77,7 @@ class SuperClassImplementingOnInit implements OnInit {
 
 class SubClassDoesNotDeclareOnInit extends SuperClassImplementingOnInit {}
 
-main() {
+void main() {
   group("Reflector", () {
     var reflector;
     setUp(() {

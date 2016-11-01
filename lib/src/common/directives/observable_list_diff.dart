@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:angular2/core.dart';
 import 'package:angular2/src/core/change_detection/differs/default_iterable_differ.dart';
-import 'package:observe/observe.dart' show ObservableList;
+import 'package:observable/observable.dart' show ObservableList;
 
 class ObservableListDiff extends DefaultIterableDiffer {
   ChangeDetectorRef _ref;
@@ -12,7 +12,7 @@ class ObservableListDiff extends DefaultIterableDiffer {
   ObservableList _collection;
   StreamSubscription _subscription;
 
-  onDestroy() {
+  void onDestroy() {
     if (this._subscription != null) {
       this._subscription.cancel();
       this._subscription = null;

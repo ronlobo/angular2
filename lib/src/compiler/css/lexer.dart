@@ -39,8 +39,7 @@ import "package:angular2/src/compiler/chars.dart"
         $LF,
         $VTAB;
 import "package:angular2/src/facade/exceptions.dart" show BaseException;
-import "package:angular2/src/facade/lang.dart"
-    show StringWrapper, isPresent, resolveEnumToken;
+import "package:angular2/src/facade/lang.dart" show resolveEnumToken;
 
 export "package:angular2/src/compiler/chars.dart"
     show
@@ -88,7 +87,7 @@ enum CssLexerMode {
 class LexedCssResult {
   CssScannerError error;
   CssToken token;
-  LexedCssResult(this.error, this.token) {}
+  LexedCssResult(this.error, this.token);
 }
 
 String generateErrorMessage(String input, String message, String errorValue,
@@ -138,8 +137,7 @@ class CssScannerError extends BaseException {
   CssToken token;
   String rawMessage;
   String message;
-  CssScannerError(this.token, message) : super("Css Parse Error: " + message) {
-    /* super call moved to initializer */;
+  CssScannerError(this.token, message) : super("Css Parse Error: $message") {
     this.rawMessage = message;
   }
   String toString() {
@@ -147,7 +145,7 @@ class CssScannerError extends BaseException {
   }
 }
 
-_trackWhitespace(CssLexerMode mode) {
+bool _trackWhitespace(CssLexerMode mode) {
   switch (mode) {
     case CssLexerMode.SELECTOR:
     case CssLexerMode.ALL_TRACK_WS:
@@ -170,7 +168,7 @@ class CssScanner {
   /** @internal */
   CssLexerMode _currentMode = CssLexerMode.BLOCK;
   /** @internal */
-  CssScannerError _currentError = null;
+  CssScannerError _currentError;
   CssScanner(this.input, [this._trackComments = false]) {
     this.length = this.input.length;
     this.peekPeek = this.peekAt(0);
@@ -180,7 +178,7 @@ class CssScanner {
     return this._currentMode;
   }
 
-  setMode(CssLexerMode mode) {
+  void setMode(CssLexerMode mode) {
     if (this._currentMode != mode) {
       if (_trackWhitespace(this._currentMode)) {
         this.consumeWhitespace();
@@ -202,9 +200,7 @@ class CssScanner {
   }
 
   num peekAt(num index) {
-    return index >= this.length
-        ? $EOF
-        : StringWrapper.charCodeAt(this.input, index);
+    return index >= this.length ? $EOF : this.input.codeUnitAt(index);
   }
 
   void consumeEmptyStatements() {
@@ -241,14 +237,12 @@ class CssScanner {
     var previousColumn = this.column;
     var output = this.scan();
     // just incase the inner scan method returned an error
-    if (isPresent(output.error)) {
+    if (output.error != null) {
       this.setMode(mode);
       return output;
     }
-    var next = output.token;
-    if (!isPresent(next)) {
-      next = new CssToken(0, 0, 0, CssTokenType.EOF, "end of file");
-    }
+    var next =
+        output.token ?? new CssToken(0, 0, 0, CssTokenType.EOF, "end of file");
     var isMatchingType;
     if (type == CssTokenType.IdentifierOrNumber) {
       // TODO (matsko): implement array traversal for lookup here
@@ -261,13 +255,13 @@ class CssScanner {
 
     // mode so that the parser can recover...
     this.setMode(mode);
-    var error = null;
-    if (!isMatchingType || (isPresent(value) && value != next.strValue)) {
+    var error;
+    if (!isMatchingType || (value != null && value != next.strValue)) {
       var errorMessage = resolveEnumToken(CssTokenType, next.type) +
           " does not match expected " +
           resolveEnumToken(CssTokenType, type) +
           " value";
-      if (isPresent(value)) {
+      if (value != null) {
         errorMessage +=
             " (\"" + next.strValue + "\" should match \"" + value + "\")";
       }
@@ -340,7 +334,7 @@ class CssScanner {
       return this.scanCharacter();
     }
     return this.error(
-        '''Unexpected character [${ StringWrapper . fromCharCode ( peek )}]''');
+        '''Unexpected character [${ new String.fromCharCode ( peek )}]''');
   }
 
   CssToken scanComment() {
@@ -495,9 +489,7 @@ class CssScanner {
     num index = this.index;
     num column = this.column;
     num line = this.line;
-    errorTokenValue = isPresent(errorTokenValue)
-        ? errorTokenValue
-        : StringWrapper.fromCharCode(this.peek);
+    errorTokenValue = errorTokenValue ?? new String.fromCharCode(this.peek);
     var invalidToken = new CssToken(
         index, column, line, CssTokenType.Invalid, errorTokenValue);
     var errorMessage = generateErrorMessage(
@@ -724,11 +716,11 @@ bool isValidCssCharacter(num code, CssLexerMode mode) {
 }
 
 num charCode(input, index) {
-  return index >= input.length ? $EOF : StringWrapper.charCodeAt(input, index);
+  return index >= input.length ? $EOF : input.codeUnitAt(index);
 }
 
 String charStr(num code) {
-  return StringWrapper.fromCharCode(code);
+  return new String.fromCharCode(code);
 }
 
 bool isNewline(code) {

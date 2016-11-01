@@ -2,9 +2,6 @@ import "dart:html";
 
 import "package:angular2/src/core/di.dart" show Injectable;
 import "package:angular2/src/core/zone/ng_zone.dart" show NgZone;
-import "package:angular2/src/facade/collection.dart"
-    show StringMapWrapper, ListWrapper;
-import "package:angular2/src/facade/lang.dart" show isPresent, StringWrapper;
 import "package:angular2/src/platform/dom/dom_adapter.dart" show DOM;
 
 import "event_manager.dart" show EventManagerPlugin;
@@ -20,24 +17,18 @@ Map<String, dynamic /* (event: KeyboardEvent) => boolean */ >
 
 @Injectable()
 class KeyEventsPlugin extends EventManagerPlugin {
-  KeyEventsPlugin() : super() {
-    /* super call moved to initializer */;
-  }
   bool supports(String eventName) {
-    return isPresent(KeyEventsPlugin.parseEventName(eventName));
+    return KeyEventsPlugin.parseEventName(eventName) != null;
   }
 
   Function addEventListener(
       dynamic element, String eventName, Function handler) {
     var parsedEvent = KeyEventsPlugin.parseEventName(eventName);
     var outsideHandler = KeyEventsPlugin.eventCallback(
-        element,
-        StringMapWrapper.get(parsedEvent, "fullKey"),
-        handler,
-        this.manager.getZone());
+        element, parsedEvent['fullKey'], handler, this.manager.getZone());
     return this.manager.getZone().runOutsideAngular(() {
-      return DOM.onAndCancel(element,
-          StringMapWrapper.get(parsedEvent, "domEventName"), outsideHandler);
+      return DOM.onAndCancel(
+          element, parsedEvent['domEventName'], outsideHandler);
     });
   }
 
@@ -45,15 +36,13 @@ class KeyEventsPlugin extends EventManagerPlugin {
     List<String> parts = eventName.toLowerCase().split(".");
     var domEventName = parts.removeAt(0);
     if ((identical(parts.length, 0)) ||
-        !(StringWrapper.equals(domEventName, "keydown") ||
-            StringWrapper.equals(domEventName, "keyup"))) {
+        !(domEventName == "keydown" || domEventName == "keyup")) {
       return null;
     }
     var key = KeyEventsPlugin._normalizeKey(parts.removeLast());
     var fullKey = "";
     modifierKeys.forEach((modifierName) {
-      if (ListWrapper.contains(parts, modifierName)) {
-        ListWrapper.remove(parts, modifierName);
+      if (parts.remove(modifierName)) {
         fullKey += modifierName + ".";
       }
     });
@@ -62,25 +51,21 @@ class KeyEventsPlugin extends EventManagerPlugin {
       // returning null instead of throwing to let another plugin process the event
       return null;
     }
-    var result = <String, String>{};
-    StringMapWrapper.set(result, "domEventName", domEventName);
-    StringMapWrapper.set(result, "fullKey", fullKey);
-    return result;
+    return <String, String>{'domEventName': domEventName, 'fullKey': fullKey};
   }
 
   static String getEventFullKey(KeyboardEvent event) {
     var fullKey = "";
     var key = DOM.getEventKey(event);
     key = key.toLowerCase();
-    if (StringWrapper.equals(key, " ")) {
+    if (key == " ") {
       key = "space";
-    } else if (StringWrapper.equals(key, ".")) {
+    } else if (key == ".") {
       key = "dot";
     }
     modifierKeys.forEach((modifierName) {
       if (modifierName != key) {
-        var modifierGetter =
-            StringMapWrapper.get(modifierKeyGetters, modifierName);
+        var modifierGetter = modifierKeyGetters[modifierName];
         if (modifierGetter(event)) {
           fullKey += modifierName + ".";
         }
@@ -93,8 +78,7 @@ class KeyEventsPlugin extends EventManagerPlugin {
   static Function eventCallback(
       dynamic element, dynamic fullKey, Function handler, NgZone zone) {
     return (event) {
-      if (StringWrapper.equals(
-          KeyEventsPlugin.getEventFullKey(event), fullKey)) {
+      if (KeyEventsPlugin.getEventFullKey(event) == fullKey) {
         zone.runGuarded(() => handler(event));
       }
     };

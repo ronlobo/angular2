@@ -15,6 +15,9 @@ import 'package:barback/barback.dart' show AssetId;
 import 'naive_eval.dart';
 import 'url_resolver.dart';
 
+// Name of mixin that enables ChangeDetectionStrategy.Stateful;
+const String _componentStateClassName = 'ComponentState';
+
 class TypeMetadataReader {
   final _DirectiveMetadataVisitor _directiveVisitor;
   final _PipeMetadataVisitor _pipeVisitor;
@@ -184,17 +187,21 @@ bool _expressionToBool(Expression node, String nodeDescription) {
 class _CompileTypeMetadataVisitor extends Object
     with RecursiveAstVisitor<CompileTypeMetadata> {
   bool _isInjectable = false;
+  bool _isStatefulComponent = false;
   CompileTypeMetadata _type;
   AssetId _assetId;
   final AnnotationMatcher _annotationMatcher;
+  final _ComponentMixinVisitor _mixinVisitor = new _ComponentMixinVisitor();
 
   _CompileTypeMetadataVisitor(this._annotationMatcher);
 
   bool get isInjectable => _isInjectable;
+  bool get isStatefulComponent => _isStatefulComponent;
 
   CompileTypeMetadata get type => _type;
 
   void reset(AssetId assetId) {
+    _mixinVisitor.reset(assetId);
     this._assetId = assetId;
     this._isInjectable = false;
     this._type = null;
@@ -234,6 +241,18 @@ class _CompileTypeMetadataVisitor extends Object
           diDeps: diDeps,
           runtime: null // Intentionally `null`, cannot be provided here.
           );
+    }
+    if (node.withClause != null) {
+      List<String> mixins = node.withClause.accept(_mixinVisitor);
+      if (mixins.contains(_componentStateClassName)) {
+        _isStatefulComponent = true;
+      }
+    }
+    if (node.extendsClause != null) {
+      List<String> mixins = node.extendsClause.accept(_mixinVisitor);
+      if (mixins.contains(_componentStateClassName)) {
+        _isStatefulComponent = true;
+      }
     }
     return null;
   }
@@ -308,6 +327,8 @@ class _DirectiveMetadataVisitor extends Object
   final AnnotationMatcher _annotationMatcher;
 
   final _LifecycleHookVisitor _lifecycleVisitor;
+  final _ComponentMixinVisitor _componentMixinVisitor =
+      new _ComponentMixinVisitor();
 
   final _CompileTypeMetadataVisitor _typeVisitor;
 
@@ -339,14 +360,17 @@ class _DirectiveMetadataVisitor extends Object
   List<LifecycleHooks> _lifecycleHooks;
   CompileTemplateMetadata _cmpTemplate;
   CompileTemplateMetadata _viewTemplate;
+  bool _isStatefulComponent;
 
   void reset(AssetId assetId) {
     _lifecycleVisitor.reset(assetId);
     _typeVisitor.reset(assetId);
+    _componentMixinVisitor.reset(assetId);
     _assetId = assetId;
 
     _type = null;
     _isComponent = false;
+    _isStatefulComponent = false;
     _hasMetadata = false;
     _selector = '';
     _exportAs = null;
@@ -365,16 +389,18 @@ class _DirectiveMetadataVisitor extends Object
 
   bool get hasMetadata => _hasMetadata;
 
-  get _template => _viewTemplate != null ? _viewTemplate : _cmpTemplate;
+  CompileTemplateMetadata get _template =>
+      _viewTemplate != null ? _viewTemplate : _cmpTemplate;
 
   CompileDirectiveMetadata createMetadata() {
     return CompileDirectiveMetadata.create(
         type: _type,
         isComponent: _isComponent,
-        // NOTE(kegluneq): For future optimization.
         selector: _selector,
         exportAs: _exportAs,
-        changeDetection: _changeDetection,
+        changeDetection: _isStatefulComponent
+            ? ChangeDetectionStrategy.Stateful
+            : _changeDetection,
         inputs: _inputs,
         outputs: _outputs,
         host: _host,
@@ -422,7 +448,6 @@ class _DirectiveMetadataVisitor extends Object
       super.visitAnnotation(node);
     } else if (_annotationMatcher.isView(node, _assetId)) {
       if (_viewTemplate != null) {
-        // TODO(kegluneq): Support multiple views on a single class.
         throw new FormatException(
             'Only one View is allowed per class. '
             'Found unexpected "$node".',
@@ -437,19 +462,44 @@ class _DirectiveMetadataVisitor extends Object
     return null;
   }
 
+  /// Verifies that annotation has parantheses.
+  ///
+  /// Throws error for input such as `@Input String value`.
+  void _verifyHasZeroOrMoreArgs(
+      String name, FieldDeclaration node, Annotation meta) {
+    if (meta.arguments == null || meta.arguments.arguments == null) {
+      throw new FormatException(
+          'Expecting parentheses after @${name}() annotation.',
+          '$node' /* source */);
+    }
+  }
+
+  void _verifyMethodHasZeroOrMoreArgs(
+      String name, MethodDeclaration node, Annotation meta) {
+    if (meta.arguments == null || meta.arguments.arguments == null) {
+      throw new FormatException(
+          'Expecting parentheses after @${name}() annotation.',
+          '$node' /* source */);
+    }
+  }
+
   @override
   Object visitFieldDeclaration(FieldDeclaration node) {
     for (var variable in node.fields.variables) {
       for (var meta in node.metadata) {
         if (_isAnnotation(meta, 'Output')) {
-          _addPropertyToType(_outputs, variable.name.toString(), meta);
+          _verifyHasZeroOrMoreArgs('Output', node, meta);
+          _addOutputPropertyToType(variable.name.toString(), meta, _outputs);
         }
 
         if (_isAnnotation(meta, 'Input')) {
-          _addPropertyToType(_inputs, variable.name.toString(), meta);
+          _verifyHasZeroOrMoreArgs('Input', node, meta);
+          _addInputPropertyToType(
+              node.fields.type, variable.name.toString(), meta, _inputs);
         }
 
         if (_isAnnotation(meta, 'HostBinding')) {
+          _verifyHasZeroOrMoreArgs('HostBinding', node, meta);
           final renamed = _getRenamedValue(meta);
           if (renamed != null) {
             _host['[${renamed}]'] = '${variable.name}';
@@ -459,19 +509,23 @@ class _DirectiveMetadataVisitor extends Object
         }
 
         if (_isAnnotation(meta, 'ContentChild')) {
-          this._queries.add(_createQueryMetadata(
+          _verifyHasZeroOrMoreArgs('ContentChild', node, meta);
+          _queries.add(_createQueryMetadata(
               meta, false, true, variable.name.toString()));
         }
         if (_isAnnotation(meta, 'ContentChildren')) {
-          this._queries.add(_createQueryMetadata(
+          _verifyHasZeroOrMoreArgs('ContentChildren', node, meta);
+          _queries.add(_createQueryMetadata(
               meta, false, false, variable.name.toString()));
         }
         if (_isAnnotation(meta, 'ViewChild')) {
-          this._viewQueries.add(
+          _verifyHasZeroOrMoreArgs('ViewChild', node, meta);
+          _viewQueries.add(
               _createQueryMetadata(meta, true, true, variable.name.toString()));
         }
         if (_isAnnotation(meta, 'ViewChildren')) {
-          this._viewQueries.add(_createQueryMetadata(
+          _verifyHasZeroOrMoreArgs('ViewChildren', node, meta);
+          _viewQueries.add(_createQueryMetadata(
               meta, false, false, variable.name.toString()));
         }
       }
@@ -483,34 +537,44 @@ class _DirectiveMetadataVisitor extends Object
   Object visitMethodDeclaration(MethodDeclaration node) {
     for (var meta in node.metadata) {
       if (_isAnnotation(meta, 'Output') && node.isGetter) {
-        _addPropertyToType(_outputs, node.name.toString(), meta);
+        _verifyMethodHasZeroOrMoreArgs('Output', node, meta);
+        _addOutputPropertyToType(node.name.toString(), meta, _outputs);
       }
 
       if (_isAnnotation(meta, 'Input') && node.isSetter) {
-        _addPropertyToType(_inputs, node.name.toString(), meta);
+        _verifyMethodHasZeroOrMoreArgs('Input', node, meta);
+        TypeName setterParamType = (node.parameters.parameters != null &&
+                node.parameters.parameters[0] is SimpleFormalParameter)
+            ? (node.parameters.parameters[0] as SimpleFormalParameter).type
+            : null;
+        _addInputPropertyToType(
+            setterParamType, node.name.toString(), meta, _inputs);
       }
 
       if (_isAnnotation(meta, 'ContentChild') && node.isSetter) {
-        this
-            ._queries
+        _verifyMethodHasZeroOrMoreArgs('ContentChild', node, meta);
+        _queries
             .add(_createQueryMetadata(meta, false, true, node.name.toString()));
       }
       if (_isAnnotation(meta, 'ContentChildren') && node.isSetter) {
-        this._queries.add(
+        _verifyMethodHasZeroOrMoreArgs('ContentChildren', node, meta);
+        _queries.add(
             _createQueryMetadata(meta, false, false, node.name.toString()));
       }
       if (_isAnnotation(meta, 'ViewChild') && node.isSetter) {
-        this
-            ._viewQueries
+        _verifyMethodHasZeroOrMoreArgs('ViewChild', node, meta);
+        _viewQueries
             .add(_createQueryMetadata(meta, true, true, node.name.toString()));
       }
       if (_isAnnotation(meta, 'ViewChildren') && node.isSetter) {
-        this._viewQueries.add(
+        _verifyMethodHasZeroOrMoreArgs('ViewChildren', node, meta);
+        _viewQueries.add(
             _createQueryMetadata(meta, false, false, node.name.toString()));
       }
 
       if (_isAnnotation(meta, 'HostListener')) {
-        if (meta.arguments.arguments.length == 0 ||
+        if (meta.arguments?.arguments == null ||
+            meta.arguments.arguments.length == 0 ||
             meta.arguments.arguments.length > 2) {
           throw new ArgumentError(
               'Incorrect value passed to HostListener. Expected 1 or 2.');
@@ -522,6 +586,7 @@ class _DirectiveMetadataVisitor extends Object
       }
 
       if (_isAnnotation(meta, 'HostBinding') && node.isGetter) {
+        _verifyMethodHasZeroOrMoreArgs('HostBinding', node, meta);
         final renamed = _getRenamedValue(meta);
         if (renamed != null) {
           _host['[${renamed}]'] = '${node.name}';
@@ -533,12 +598,31 @@ class _DirectiveMetadataVisitor extends Object
     return null;
   }
 
-  void _addPropertyToType(List type, String name, Annotation meta) {
+  void _addOutputPropertyToType(String name, Annotation meta, List outputList) {
     final renamed = _getRenamedValue(meta);
     if (renamed != null) {
-      type.add('${name}: ${renamed}');
+      outputList.add('${name}: ${renamed}');
     } else {
-      type.add('${name}');
+      outputList.add('${name}');
+    }
+  }
+
+  void _addInputPropertyToType(
+      TypeName inputType, String name, Annotation meta, List inputList) {
+    final renamed = _getRenamedValue(meta);
+    String inputTypeName = inputType?.name?.name;
+    if (renamed != null) {
+      if (inputType != null) {
+        inputList.add('$name: $renamed; $inputTypeName');
+      } else {
+        inputList.add('$name: $renamed');
+      }
+    } else {
+      if (inputType != null) {
+        inputList.add('${name}; ${inputType.name.name}');
+      } else {
+        inputList.add('${name}');
+      }
     }
   }
 
@@ -599,11 +683,24 @@ class _DirectiveMetadataVisitor extends Object
     if (this._hasMetadata) {
       _lifecycleHooks = node.implementsClause != null
           ? node.implementsClause.accept(_lifecycleVisitor)
-              as List<LifecycleHooks>
           : const <LifecycleHooks>[];
+
+      if (node.withClause != null) {
+        List<String> mixins = node.withClause.accept(_componentMixinVisitor);
+        if (mixins.contains(_componentStateClassName)) {
+          _isStatefulComponent = true;
+        }
+      }
+      if (node.extendsClause != null) {
+        List<String> mixins = node.extendsClause.accept(_componentMixinVisitor);
+        if (mixins.contains(_componentStateClassName)) {
+          _isStatefulComponent = true;
+        }
+      }
 
       node.members.accept(this);
     }
+
     return null;
   }
 
@@ -623,9 +720,6 @@ class _DirectiveMetadataVisitor extends Object
       case 'inputs':
         _populateProperties(node.expression);
         break;
-      case 'properties':
-        _populateProperties(node.expression);
-        break;
       case 'host':
         _populateHost(node.expression);
         break;
@@ -638,19 +732,10 @@ class _DirectiveMetadataVisitor extends Object
       case 'outputs':
         _populateEvents(node.expression);
         break;
-      case 'events':
-        _populateEvents(node.expression);
-        break;
       case 'providers':
         _populateProviders(node.expression, _providers);
         break;
-      case 'bindings':
-        _populateProviders(node.expression, _providers);
-        break;
       case 'viewProviders':
-        _populateProviders(node.expression, _viewProviders);
-        break;
-      case 'viewBindings':
         _populateProviders(node.expression, _viewProviders);
         break;
     }
@@ -746,6 +831,33 @@ class _LifecycleHookVisitor extends SimpleAstVisitor<List<LifecycleHooks>> {
   }
 }
 
+/// Visitor responsible for returning list of angular mixins.
+class _ComponentMixinVisitor extends SimpleAstVisitor<List<String>> {
+  /// The [AssetId] we are currently processing.
+  AssetId _assetId;
+
+  _ComponentMixinVisitor();
+
+  void reset(AssetId assetId) {
+    _assetId = assetId;
+  }
+
+  List<String> visitWithClause(WithClause node) {
+    if (node == null) return const <String>[];
+    var mixinTypes = <String>[];
+    node.mixinTypes.forEach((TypeName t) {
+      mixinTypes.add(t.name.name);
+    });
+    return mixinTypes;
+  }
+
+  @override
+  List<String> visitExtendsClause(ExtendsClause node) {
+    if (node == null) return const <String>[];
+    return [node.superclass.name.name];
+  }
+}
+
 /// Visitor responsible for parsing a @View [Annotation] and producing a
 /// [CompileTemplateMetadata].
 class _CompileTemplateMetadataVisitor
@@ -816,8 +928,7 @@ class _CompileTemplateMetadataVisitor
   }
 
   void _populatePreserveWhitespace(Expression value) {
-    _preserveWhitespace =
-        _expressionToString(value, 'View#preserveWhitespace') == "true";
+    _preserveWhitespace = _expressionToBool(value, 'View#preserveWhitespace');
   }
 
   void _populateTemplateUrl(Expression value) {
@@ -917,7 +1028,6 @@ class _PipeMetadataVisitor extends Object with RecursiveAstVisitor<Object> {
     if (this._hasMetadata) {
       _lifecycleHooks = node.implementsClause != null
           ? node.implementsClause.accept(_lifecycleVisitor)
-              as List<LifecycleHooks>
           : const <LifecycleHooks>[];
 
       node.members.accept(this);
@@ -1240,11 +1350,11 @@ List<CompileDiDependencyMetadata> _readDeps(ListLiteral deps) {
   }).toList();
 }
 
-_createQueryMetadata(Annotation a, bool defaultDescendantsValue, bool first,
-    String propertyName) {
+CompileQueryMetadata _createQueryMetadata(Annotation a,
+    bool defaultDescendantsValue, bool first, String propertyName) {
   final selector = _readToken(a.arguments.arguments.first);
   var descendants = defaultDescendantsValue;
-  var read = null;
+  var read;
   a.arguments.arguments.skip(0).forEach((arg) {
     if (arg is NamedExpression) {
       var name = arg.name.toString();
@@ -1286,7 +1396,7 @@ List<CompileDiDependencyMetadata> _getCompileDiDependencyMetadata(
       token =
           _readToken(_getAnnotation(p, "Attribute").arguments.arguments.first);
     } else {
-      var type = null;
+      var type;
       if (p is SimpleFormalParameter) {
         type = p.type;
       } else if (p is FieldFormalParameter) {
@@ -1318,7 +1428,10 @@ List<CompileDiDependencyMetadata> _getCompileDiDependencyMetadata(
       viewQuery = _createQueryMetadata(
           _getAnnotation(p, "ViewChildren"), true, false, null);
     }
-
+    if (token == null) {
+      throw new ArgumentError(
+          'Missing class member or type for constructor parameter $p');
+    }
     return new CompileDiDependencyMetadata(
         token: token,
         isAttribute: _hasAnnotation(p, "Attribute"),
@@ -1331,10 +1444,10 @@ List<CompileDiDependencyMetadata> _getCompileDiDependencyMetadata(
   }).toList();
 }
 
-_getAnnotation(p, String attrName) =>
+Annotation _getAnnotation(p, String attrName) =>
     p.metadata.where((m) => m.name.toString() == attrName).first;
 
-_hasAnnotation(p, String attrName) =>
+bool _hasAnnotation(p, String attrName) =>
     p.metadata.where((m) => m.name.toString() == attrName).isNotEmpty;
 
 bool _hasConst(List list, String name) => list

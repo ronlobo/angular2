@@ -328,8 +328,6 @@ class _NgMetaIdentifierResolver {
     if (provider.deps != null) {
       _resolveDiDependencyMetadata(ngMetaMap, neededBy, provider.deps);
     }
-    ;
-    ;
   }
 
   void _resolveDiDependencyMetadata(Map<String, NgMeta> ngMetaMap,
@@ -429,6 +427,12 @@ class _NgMetaIdentifierResolver {
     var moduleUrl = resolvedIdentifiers[id.name];
     if (moduleUrl != null) {
       return new CompileIdentifierMetadata(name: id.name, moduleUrl: moduleUrl);
+    } else if (id.name == "RuntimeCompiler") {
+      // Special case for RuntimeCompiler: since compiler runs in VM, it can't
+      // import [RuntimeCompiler] library to resolve identifier.
+      return new CompileIdentifierMetadata(
+          name: id.name,
+          moduleUrl: 'package:angular2/src/compiler/runtime_compiler.dart');
     } else {
       return null;
     }

@@ -1,14 +1,14 @@
-@TestOn('browser')
+@TestOn('browser && !js')
 library angular2.test.symbol_inspector.symbol_inspector_test;
 
 import 'dart:mirrors';
 
-import 'symbol_inspector.dart';
-import 'simple_library.dart';
-
 import 'package:test/test.dart';
 
-main() {
+import 'simple_library.dart';
+import 'symbol_inspector.dart';
+
+void main() {
   group('getSymbolsFromLibrary', () {
     test('should extract symbols', () {
       var simpleLib = reflectClass(A).owner as LibraryMirror;

@@ -1,19 +1,18 @@
 @TestOn('browser')
 library angular2.test.core.change_detection.differs.default_iterable_differ_test;
 
-import "package:angular2/testing_internal.dart";
+import 'dart:collection';
+
 import "package:angular2/src/core/change_detection/differs/default_iterable_differ.dart"
     show DefaultIterableDiffer, DefaultIterableDifferFactory;
-import "package:angular2/src/facade/lang.dart" show NumberWrapper;
-import "package:angular2/src/facade/collection.dart" show ListWrapper;
-import 'dart:collection';
+import "package:angular2/testing_internal.dart";
 import 'package:test/test.dart';
 
 // todo(vicb): UnmodifiableListView / frozen object when implemented
-main() {
+void main() {
   group("iterable differ", () {
     group("DefaultIterableDiffer", () {
-      var differ;
+      DefaultIterableDiffer differ;
       setUp(() {
         differ = new DefaultIterableDiffer();
       });
@@ -88,7 +87,7 @@ main() {
       test("should handle swapping element", () {
         var l = [1, 2];
         differ.check(l);
-        ListWrapper.clear(l);
+        l.clear();
         l.add(2);
         l.add(1);
         differ.check(l);
@@ -102,8 +101,9 @@ main() {
       test("should handle incremental swapping element", () {
         var l = ["a", "b", "c"];
         differ.check(l);
-        ListWrapper.removeAt(l, 1);
-        ListWrapper.insert(l, 0, "b");
+        l
+          ..removeAt(1)
+          ..insert(0, 'b');
         differ.check(l);
         expect(
             differ.toString(),
@@ -111,7 +111,7 @@ main() {
                 collection: ["b[1->0]", "a[0->1]", "c"],
                 previous: ["a[0->1]", "b[1->0]", "c"],
                 moves: ["b[1->0]", "a[0->1]"]));
-        ListWrapper.removeAt(l, 1);
+        l.removeAt(1);
         l.add("a");
         differ.check(l);
         expect(
@@ -147,7 +147,7 @@ main() {
                 collection: ["a", "b", "c[null->2]", "d[null->3]"],
                 previous: ["a", "b"],
                 additions: ["c[null->2]", "d[null->3]"]));
-        ListWrapper.removeAt(l, 2);
+        l.removeAt(2);
         differ.check(l);
         expect(
             differ.toString(),
@@ -156,7 +156,7 @@ main() {
                 previous: ["a", "b", "c[2->null]", "d[3->2]"],
                 moves: ["d[3->2]"],
                 removals: ["c[2->null]"]));
-        ListWrapper.clear(l);
+        l.clear();
         l.add("d");
         l.add("c");
         l.add("b");
@@ -183,32 +183,18 @@ main() {
                 collection: ["a", "boo"], previous: ["a", "boo"]));
       });
       test("should ignore [NaN] != [NaN] (JS)", () {
-        var l = [NumberWrapper.NaN];
+        var l = [double.NAN];
         differ.check(l);
         differ.check(l);
         expect(
             differ.toString(),
             iterableChangesAsString(
-                collection: [NumberWrapper.NaN],
-                previous: [NumberWrapper.NaN]));
-      });
-      test("should detect [NaN] moves", () {
-        var l = [NumberWrapper.NaN, NumberWrapper.NaN];
-        differ.check(l);
-        ListWrapper.insert/*< dynamic >*/(l, 0, "foo");
-        differ.check(l);
-        expect(
-            differ.toString(),
-            iterableChangesAsString(
-                collection: ["foo[null->0]", "NaN[0->1]", "NaN[1->2]"],
-                previous: ["NaN[0->1]", "NaN[1->2]"],
-                additions: ["foo[null->0]"],
-                moves: ["NaN[0->1]", "NaN[1->2]"]));
-      });
+                collection: [double.NAN], previous: [double.NAN]));
+      }, tags: ['known_ff_failure']);
       test("should remove and add same item", () {
         var l = ["a", "b", "c"];
         differ.check(l);
-        ListWrapper.removeAt(l, 1);
+        l.removeAt(1);
         differ.check(l);
         expect(
             differ.toString(),
@@ -217,7 +203,7 @@ main() {
                 previous: ["a", "b[1->null]", "c[2->1]"],
                 moves: ["c[2->1]"],
                 removals: ["b[1->null]"]));
-        ListWrapper.insert(l, 1, "b");
+        l.insert(1, 'b');
         differ.check(l);
         expect(
             differ.toString(),
@@ -230,7 +216,7 @@ main() {
       test("should support duplicates", () {
         var l = ["a", "a", "a", "b", "b"];
         differ.check(l);
-        ListWrapper.removeAt(l, 0);
+        l.removeAt(0);
         differ.check(l);
         expect(
             differ.toString(),
@@ -243,7 +229,7 @@ main() {
       test("should support insertions/moves", () {
         var l = ["a", "a", "b", "b"];
         differ.check(l);
-        ListWrapper.insert(l, 0, "b");
+        l.insert(0, 'b');
         differ.check(l);
         expect(
             differ.toString(),
@@ -269,7 +255,7 @@ main() {
       test("should not report unnecessary moves", () {
         var l = ["a", "b", "c"];
         differ.check(l);
-        ListWrapper.clear(l);
+        l.clear();
         l.add("b");
         l.add("a");
         l.add("c");
@@ -298,8 +284,10 @@ main() {
                   removals: ["a[0->null]", "b[1->null]"]));
         });
         test("should throw when given an invalid collection", () {
-          expect(() => differ.diff("invalid"),
-              throwsWith("type 'String' is not a subtype of type 'Iterable'"));
+          expect(
+              () => differ.diff("invalid" as dynamic),
+              throwsWith(new RegExp(
+                  "type '(JS)?String' is not a subtype of type 'Iterable'")));
         });
       });
     });
@@ -399,7 +387,7 @@ main() {
       test("should track removals normally", () {
         var l = buildItemList(["a", "b", "c"]);
         differ.check(l);
-        ListWrapper.removeAt(l, 2);
+        l.removeAt(2);
         differ.check(l);
         expect(
             differ.toString(),
@@ -432,18 +420,18 @@ main() {
 }
 
 class ItemWithId {
-  String id;
-  ItemWithId(this.id) {}
-  toString() {
+  final String id;
+  ItemWithId(this.id);
+  String toString() {
     return '''{id: ${ this . id}}''';
   }
 }
 
 class ComplexItem {
-  String id;
-  String color;
-  ComplexItem(this.id, this.color) {}
-  toString() {
+  final String id;
+  final String color;
+  ComplexItem(this.id, this.color);
+  String toString() {
     return '''{id: ${ this . id}, color: ${ this . color}}''';
   }
 }
@@ -453,7 +441,7 @@ class TestIterable extends IterableBase<int> {
   Iterator<int> get iterator => list.iterator;
 }
 
-iterableChangesAsString(
+String iterableChangesAsString(
     {collection: const [],
     previous: const [],
     additions: const [],

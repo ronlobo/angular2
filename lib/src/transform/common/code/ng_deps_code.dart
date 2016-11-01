@@ -19,7 +19,7 @@ class NgDepsVisitor extends RecursiveAstVisitor<Object> {
   final ReflectionInfoVisitor _reflectableVisitor;
 
   bool _isPart = false;
-  NgDepsModel _model = null;
+  NgDepsModel _model;
 
   NgDepsVisitor(AssetId processedFile, AnnotationMatcher annotationMatcher)
       : this.processedFile = processedFile,
@@ -115,24 +115,22 @@ class NgDepsWriter extends Object
 }
 
 const _ignoredProblems = const <String>[
-  'always_declare_return_types',
   'annotate_overrides',
-  'avoid_init_to_null',
-  'camel_case_types',
+  'cancel_subscriptions',
   'constant_identifier_names',
   'non_constant_identifier_names',
-  'empty_constructor_bodies',
   'implementation_imports',
   'library_prefixes',
-  'prefer_is_not_empty',
   'type_annotate_public_apis',
-  'DEPRECATED_MEMBER_USE',
   'STRONG_MODE_DOWN_CAST_COMPOSITE',
   'UNUSED_IMPORT',
   'UNUSED_SHOWN_NAME',
   'UNUSED_LOCAL_VARIABLE',
-  // TODO(jakemac): Remove these once we fix all projects....
-  'cancel_subscriptions',
+];
+
+// These are only enabled if `ignore_real_template_issues` is set to true.
+// TODO(jakemac): Remove this once it is no longer necessary
+const _ignoredRealTemplateIssues = const <String>[
   'AMBIGUOUS_EXPORT',
   'CONFLICTING_DART_IMPORT',
   'CONST_INITIALIZED_WITH_NON_CONSTANT_VALUE',
@@ -161,10 +159,20 @@ abstract class NgDepsWriterMixin
         ReflectionWriterMixin {
   StringBuffer get buffer;
 
-  void writeNgDepsModel(NgDepsModel model, String templateCode) {
+  void writeNgDepsModel(
+      NgDepsModel model, String templateCode, bool ignoreRealTemplateIssues) {
     // Avoid strong-mode warnings about unused imports.
     for (var problem in _ignoredProblems) {
       buffer.writeln('// @ignoreProblemForFile $problem');
+    }
+
+    // Avoid other common errors that result from bad templates. This option
+    // should only be used to fix failing builds while a proper fix is put in
+    // place.
+    if (ignoreRealTemplateIssues) {
+      for (var problem in _ignoredRealTemplateIssues) {
+        buffer.writeln('// @ignoreProblemForFile $problem');
+      }
     }
 
     if (model.libraryUri.isNotEmpty) {
@@ -174,19 +182,32 @@ abstract class NgDepsWriterMixin
     // We need to import & export (see below) the source file.
     writeImportModel(new ImportModel()..uri = model.sourceFile);
 
+    final needsReceiver =
+        (model.reflectables != null && model.reflectables.isNotEmpty);
+
     // Used to register reflective information.
-    writeImportModel(new ImportModel()
-      ..uri = REFLECTOR_IMPORT
-      ..prefix = REFLECTOR_PREFIX);
+    if (needsReceiver) {
+      writeImportModel(new ImportModel()
+        ..uri = REFLECTOR_IMPORT
+        ..prefix = REFLECTOR_PREFIX);
+    }
 
     // We do not support `partUris`, so skip outputting them.
-
     // Ignore deferred imports here so as to not load the deferred libraries
     // code in the current library causing much of the code to not be
     // deferred. Instead `DeferredRewriter` will rewrite the code as to load
     // `ng_deps` in a deferred way.
-    model.imports.where((i) => !i.isDeferred).forEach(writeImportModel);
-    model.depImports.where((i) => !i.isDeferred).forEach(writeImportModel);
+    // TODO: Needs to check every import as XYZ for XYZ in AppView member names,
+    // otherwise imports such as import 'something' as renderer, causes
+    // generated code for renderer.createElement/etc to fail.
+    model.imports.where((i) => !i.isDeferred).forEach((ImportModel imp) {
+      String stmt = importModelToStmt(imp);
+      if (!templateCode.contains(stmt)) writeImportModel(imp);
+    });
+    model.depImports.where((i) => !i.isDeferred).forEach((ImportModel imp) {
+      String stmt = importModelToStmt(imp);
+      if (!templateCode.contains(stmt)) writeImportModel(imp);
+    });
 
     writeExportModel(new ExportModel()..uri = model.sourceFile);
     model.exports.forEach(writeExportModel);
@@ -199,13 +220,19 @@ abstract class NgDepsWriterMixin
       writeLocalMetadataMap(model.reflectables);
     }
 
-    buffer
-      ..writeln('var _visited = false;')
-      ..writeln('void ${SETUP_METHOD_NAME}() {')
-      ..writeln('if (_visited) return; _visited = true;');
+    bool hasInitializationCode = needsReceiver || model.depImports.isNotEmpty;
 
-    final needsReceiver =
-        (model.reflectables != null && model.reflectables.isNotEmpty);
+    // Create global variable _visited to prevent initializing dependencies
+    // multiple times.
+    if (hasInitializationCode) buffer.writeln('var _visited = false;');
+
+    // Write void initReflector() function start.
+    buffer.writeln('void ${SETUP_METHOD_NAME}() {');
+
+    // Write code to prevent reentry.
+    if (hasInitializationCode) {
+      buffer.writeln('if (_visited) return; _visited = true;');
+    }
 
     if (needsReceiver) {
       buffer.writeln('$REFLECTOR_PREFIX.$REFLECTOR_VAR_NAME');
@@ -224,6 +251,7 @@ abstract class NgDepsWriterMixin
       buffer.writeln('${importModel.prefix}.${SETUP_METHOD_NAME}();');
     }
 
+    // Write void initReflector() function end.
     buffer.writeln('}');
   }
 }

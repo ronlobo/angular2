@@ -1,10 +1,10 @@
-@TestOn('browser')
+@TestOn('browser && !js')
 library angular2.test.core.linker.view_injector_integration_test;
 
-import "package:angular2/testing_internal.dart";
-import "package:angular2/src/facade/lang.dart" show isBlank, stringify, Type;
-import "package:angular2/core.dart";
 import "package:angular2/common.dart";
+import "package:angular2/core.dart";
+import "package:angular2/src/facade/lang.dart" show stringify;
+import "package:angular2/testing_internal.dart";
 import 'package:test/test.dart';
 
 const ALL_DIRECTIVES = const [
@@ -53,7 +53,7 @@ const ALL_PIPES = const [
 @Directive(selector: "[simpleDirective]")
 class SimpleDirective {
   @Input("simpleDirective")
-  dynamic value = null;
+  dynamic value;
 }
 
 @Component(
@@ -67,7 +67,7 @@ class SomeOtherDirective {}
 
 @Directive(selector: "[cycleDirective]")
 class CycleDirective {
-  CycleDirective(CycleDirective self) {}
+  CycleDirective(CycleDirective self);
 }
 
 @Directive(selector: "[needsDirectiveFromSelf]")
@@ -209,7 +209,7 @@ class OptionallyNeedsTemplateRef {
 @Directive(selector: "[directiveNeedsChangeDetectorRef]")
 class DirectiveNeedsChangeDetectorRef {
   ChangeDetectorRef changeDetectorRef;
-  DirectiveNeedsChangeDetectorRef(this.changeDetectorRef) {}
+  DirectiveNeedsChangeDetectorRef(this.changeDetectorRef);
 }
 
 @Component(
@@ -220,12 +220,12 @@ class DirectiveNeedsChangeDetectorRef {
 class PushComponentNeedsChangeDetectorRef {
   ChangeDetectorRef changeDetectorRef;
   num counter = 0;
-  PushComponentNeedsChangeDetectorRef(this.changeDetectorRef) {}
+  PushComponentNeedsChangeDetectorRef(this.changeDetectorRef);
 }
 
 @Pipe(name: "purePipe", pure: true)
 class PurePipe implements PipeTransform {
-  PurePipe() {}
+  PurePipe();
   dynamic transform(dynamic value) {
     return this;
   }
@@ -233,7 +233,6 @@ class PurePipe implements PipeTransform {
 
 @Pipe(name: "impurePipe", pure: false)
 class ImpurePipe implements PipeTransform {
-  ImpurePipe() {}
   dynamic transform(dynamic value) {
     return this;
   }
@@ -242,7 +241,7 @@ class ImpurePipe implements PipeTransform {
 @Pipe(name: "pipeNeedsChangeDetectorRef")
 class PipeNeedsChangeDetectorRef {
   ChangeDetectorRef changeDetectorRef;
-  PipeNeedsChangeDetectorRef(this.changeDetectorRef) {}
+  PipeNeedsChangeDetectorRef(this.changeDetectorRef);
   dynamic transform(dynamic value) {
     return this;
   }
@@ -290,14 +289,12 @@ class Car {
 class SomeService {}
 
 @InjectorModule(providers: const [Car])
-class SomeModuleWithProvider {
-  SomeModuleWithProvider() {}
-}
+class SomeModuleWithProvider {}
 
 @InjectorModule()
 class SomeModuleWithDeps {
   SomeService someService;
-  SomeModuleWithDeps(this.someService) {}
+  SomeModuleWithDeps(this.someService);
 }
 
 @InjectorModule()
@@ -310,13 +307,11 @@ class SomeModuleWithProp {
 
 ComponentFixture createCompFixture(String template, TestComponentBuilder tcb,
     [Type comp = null]) {
-  if (isBlank(comp)) {
-    comp = TestComp;
-  }
+  comp ??= TestComp;
   return tcb
       .overrideView(
           comp,
-          new ViewMetadata(
+          new View(
               template: template, directives: ALL_DIRECTIVES, pipes: ALL_PIPES))
       .createFakeAsync(comp);
 }
@@ -328,7 +323,7 @@ DebugElement createComp(String template, TestComponentBuilder tcb,
   return fixture.debugElement;
 }
 
-main() {
+void main() {
   TestComponentBuilder tcb;
 
   group("View Injector", () {
@@ -363,7 +358,7 @@ main() {
               provide("injectable2",
                   useFactory: (val) => '''${ val}-injectable2''',
                   deps: [
-                    [new InjectMetadata("injectable1"), new SkipSelfMetadata()]
+                    [new Inject("injectable1"), new SkipSelf()]
                   ])
             ]));
         expect(el.children[0].children[0].inject("injectable2"),

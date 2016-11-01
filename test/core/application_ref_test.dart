@@ -2,15 +2,7 @@
 library angular2.test.core.application_ref_test;
 
 import "dart:async";
-import "package:angular2/testing_internal.dart";
-import "core_mocks.dart";
-import "package:angular2/src/core/application_ref.dart"
-    show
-        ApplicationRef_,
-        ApplicationRef,
-        PlatformRef,
-        PLATFORM_CORE_PROVIDERS,
-        APPLICATION_CORE_PROVIDERS;
+
 import "package:angular2/core.dart"
     show
         Injector,
@@ -24,20 +16,29 @@ import "package:angular2/core.dart"
         disposePlatform,
         ComponentResolver,
         ChangeDetectorRef;
-import "package:angular2/src/core/console.dart" show Console;
-import "package:angular2/src/facade/exceptions.dart" show BaseException;
-import "package:angular2/src/facade/async.dart"
-    show PromiseWrapper, PromiseCompleter, TimerWrapper;
+import "package:angular2/src/core/application_ref.dart"
+    show
+        ApplicationRefImpl,
+        ApplicationRef,
+        PlatformRef,
+        PLATFORM_CORE_PROVIDERS,
+        APPLICATION_CORE_PROVIDERS;
+import "package:angular2/src/core/linker/app_view_utils.dart" show AppViewUtils;
 import "package:angular2/src/core/linker/component_factory.dart"
-    show ComponentFactory, ComponentRef_, ComponentRef;
+    show ComponentFactory, ComponentRefImpl, ComponentRef;
 import "package:angular2/src/core/linker/injector_factory.dart"
     show CodegenInjectorFactory;
 import "package:angular2/src/facade/exception_handler.dart"
     show ExceptionHandler;
-import 'package:test/test.dart';
+import "package:angular2/src/facade/exceptions.dart" show BaseException;
+import "package:angular2/src/platform/browser_common.dart";
+import "package:angular2/testing_internal.dart";
 import 'package:mockito/mockito.dart';
+import 'package:test/test.dart';
 
-main() {
+import "core_mocks.dart";
+
+void main() {
   group("bootstrap", () {
     PlatformRef platform;
     _ArrayLogger errorLogger;
@@ -49,22 +50,25 @@ main() {
     tearDown(() {
       disposePlatform();
     });
-    ApplicationRef_ createApplication(List<dynamic> providers) {
+
+    ApplicationRefImpl createApplication(List<dynamic> providers) {
       platform = createPlatform(
           ReflectiveInjector.resolveAndCreate(PLATFORM_CORE_PROVIDERS));
       someCompFactory = new _MockComponentFactory(
           new _MockComponentRef(ReflectiveInjector.resolveAndCreate([])));
       var appInjector = ReflectiveInjector.resolveAndCreate([
         APPLICATION_CORE_PROVIDERS,
-        new Provider(Console, useValue: new _MockConsole()),
+        BROWSER_APP_COMMON_PROVIDERS,
         new Provider(ExceptionHandler,
             useValue: new ExceptionHandler(errorLogger, false)),
         new Provider(ComponentResolver,
             useValue: new _MockComponentResolver(someCompFactory)),
         providers
       ], platform.injector);
+      appInjector.get(AppViewUtils);
       return appInjector.get(ApplicationRef);
     }
+
     group("ApplicationRef", () {
       test("should throw when reentering tick", () async {
         return inject([], () {
@@ -92,36 +96,23 @@ main() {
                 throwsWith("Test"));
           });
         });
-        test(
-            'should return a promise with rejected errors '
-            'even if the exceptionHandler is not rethrowing', () async {
-          return inject([AsyncTestCompleter, Injector],
-              (AsyncTestCompleter completer, injector) {
-            var ref = createApplication([]);
-            var promise = ref.run(() => PromiseWrapper.reject("Test", null));
-            PromiseWrapper.catchError(promise, (e) {
-              expect(e, "Test");
-              completer.done();
-            });
-          });
-        });
       });
     });
     group("coreLoadAndBootstrap", () {
       test("should wait for asynchronous app initializers", () async {
         return inject([AsyncTestCompleter, Injector],
             (AsyncTestCompleter testCompleter, Injector injector) {
-          PromiseCompleter<dynamic> completer = PromiseWrapper.completer();
+          var completer = new Completer();
           var initializerDone = false;
-          TimerWrapper.setTimeout(() {
-            completer.resolve(true);
+          new Timer(const Duration(milliseconds: 1), () {
+            completer.complete(true);
             initializerDone = true;
-          }, 1);
+          });
           var app = createApplication([
             new Provider(APP_INITIALIZER,
-                useValue: () => completer.promise, multi: true)
+                useValue: () => completer.future, multi: true)
           ]);
-          completer.promise.then((_) {
+          completer.future.then((_) {
             coreLoadAndBootstrap(app.injector, MyComp).then((compRef) {
               expect(initializerDone, isTrue);
               testCompleter.done();
@@ -135,7 +126,7 @@ main() {
         return inject([Injector], (injector) {
           var app = createApplication([
             new Provider(APP_INITIALIZER,
-                useValue: () => PromiseWrapper.completer().promise, multi: true)
+                useValue: () => new Completer().future, multi: true)
           ]);
           expect(
               () => app.bootstrap(someCompFactory),
@@ -165,7 +156,7 @@ class _ArrayLogger {
     this.res.add(s);
   }
 
-  logGroupEnd() {}
+  void logGroupEnd() {}
 }
 
 class _MockComponentFactory extends ComponentFactory {
@@ -180,9 +171,9 @@ class _MockComponentFactory extends ComponentFactory {
 
 class _MockComponentResolver implements ComponentResolver {
   ComponentFactory _compFactory;
-  _MockComponentResolver(this._compFactory) {}
+  _MockComponentResolver(this._compFactory);
   Future<ComponentFactory> resolveComponent(Type type) {
-    return PromiseWrapper.resolve(this._compFactory);
+    return new Future.value(this._compFactory);
   }
 
   CodegenInjectorFactory<dynamic> createInjectorFactory(Type injectorModule,
@@ -190,10 +181,10 @@ class _MockComponentResolver implements ComponentResolver {
     throw new UnimplementedError();
   }
 
-  clearCache() {}
+  void clearCache() {}
 }
 
-class _MockComponentRef extends ComponentRef_ {
+class _MockComponentRef extends ComponentRefImpl {
   Injector _injector;
   _MockComponentRef(this._injector) : super(null, null, null);
 
@@ -206,9 +197,4 @@ class _MockComponentRef extends ComponentRef_ {
   }
 
   onDestroy(Function cb) {}
-}
-
-class _MockConsole implements Console {
-  log(message) {}
-  warn(message) {}
 }

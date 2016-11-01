@@ -1,44 +1,24 @@
-import "package:angular2/src/facade/lang.dart" show isPresent;
-
 import "../model.dart" show AbstractControl;
 
-/**
- * Base class for control directives.
- *
- * Only used internally in the forms module.
- */
-abstract class AbstractControlDirective {
-  AbstractControl get control;
+/// Base class for control directives.
+///
+/// Only used internally in the forms module.
+abstract class AbstractControlDirective<T extends AbstractControl> {
+  T get control;
 
-  dynamic get value {
-    return isPresent(this.control) ? this.control.value : null;
-  }
+  dynamic get value => control?.value;
 
-  bool get valid {
-    return isPresent(this.control) ? this.control.valid : null;
-  }
+  bool get valid => control?.valid;
 
-  Map<String, dynamic> get errors {
-    return isPresent(this.control) ? this.control.errors : null;
-  }
+  Map<String, dynamic> get errors => control?.errors;
 
-  bool get pristine {
-    return isPresent(this.control) ? this.control.pristine : null;
-  }
+  bool get pristine => control?.pristine;
 
-  bool get dirty {
-    return isPresent(this.control) ? this.control.dirty : null;
-  }
+  bool get dirty => control?.dirty;
 
-  bool get touched {
-    return isPresent(this.control) ? this.control.touched : null;
-  }
+  bool get touched => control?.touched;
 
-  bool get untouched {
-    return isPresent(this.control) ? this.control.untouched : null;
-  }
+  bool get untouched => control?.untouched;
 
-  List<String> get path {
-    return null;
-  }
+  List<String> get path => null;
 }

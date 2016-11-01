@@ -1,36 +1,28 @@
 import 'dart:async';
 
-import 'package:angular2/src/core/linker/component_factory.dart'
-    show ComponentFactory;
 import 'package:angular2/src/facade/exceptions.dart' show BaseException;
 
 import 'compile_metadata.dart'
     show
         CompileDirectiveMetadata,
-        CompileIdentifierMetadata,
         CompilePipeMetadata,
         createHostComponentMeta,
         CompileInjectorModuleMetadata,
         CompileTypeMetadata;
+import 'compiler_utils.dart' show MODULE_SUFFIX;
 import 'directive_normalizer.dart' show DirectiveNormalizer;
+import 'identifiers.dart';
 import 'output/abstract_emitter.dart' show OutputEmitter;
 import 'output/output_ast.dart' as o;
 import 'style_compiler.dart' show StyleCompiler, StylesCompileResult;
 import 'template_parser.dart' show TemplateParser;
-import 'util.dart' show MODULE_SUFFIX;
 import 'view_compiler/injector_compiler.dart' show InjectorCompiler;
 import 'view_compiler/view_compiler.dart' show ViewCompiler, ViewCompileResult;
 
-var _COMPONENT_FACTORY_IDENTIFIER = new CompileIdentifierMetadata(
-    name: 'ComponentFactory',
-    runtime: ComponentFactory,
-    moduleUrl:
-        'asset:angular2/lib/src/core/linker/component_factory${MODULE_SUFFIX}');
-
 class SourceModule {
-  String moduleUrl;
-  String source;
-  SourceModule(this.moduleUrl, this.source) {}
+  final String moduleUrl;
+  final String source;
+  SourceModule(this.moduleUrl, this.source);
 }
 
 class NormalizedComponentWithViewDirectives {
@@ -38,7 +30,7 @@ class NormalizedComponentWithViewDirectives {
   List<CompileDirectiveMetadata> directives;
   List<CompilePipeMetadata> pipes;
   NormalizedComponentWithViewDirectives(
-      this.component, this.directives, this.pipes) {}
+      this.component, this.directives, this.pipes);
 }
 
 /// Compiles a view template.
@@ -55,7 +47,7 @@ class OfflineCompiler {
       this._styleCompiler,
       this._viewCompiler,
       this._injectorCompiler,
-      this._outputEmitter) {}
+      this._outputEmitter);
   Future<CompileDirectiveMetadata> normalizeDirectiveMetadata(
       CompileDirectiveMetadata directive) {
     return _directiveNormalizer.normalizeDirective(directive);
@@ -86,15 +78,15 @@ class OfflineCompiler {
       var compFactoryVar = '${compMeta.type.name}NgFactory';
       statements.add(o
           .variable(compFactoryVar)
-          .set(o.importExpr(_COMPONENT_FACTORY_IDENTIFIER).instantiate(
-              [
+          .set(o.importExpr(Identifiers.ComponentFactory).instantiate(
+              <o.Expression>[
                 o.literal(compMeta.selector),
                 o.variable(hostViewFactoryVar),
                 o.importExpr(compMeta.type),
                 o.METADATA_MAP
               ],
               o.importType(
-                  _COMPONENT_FACTORY_IDENTIFIER, null, [o.TypeModifier.Const])))
+                  Identifiers.ComponentFactory, null, [o.TypeModifier.Const])))
           .toDeclStmt(null, [o.StmtModifier.Final]));
       exportedVars.add(compFactoryVar);
     });
@@ -127,8 +119,8 @@ class OfflineCompiler {
     var styleResult = _styleCompiler.compileComponent(compMeta);
     var parsedTemplate = _templateParser.parse(compMeta,
         compMeta.template.template, directives, pipes, compMeta.type.name);
-    var viewResult = _viewCompiler.compileComponent(
-        compMeta, parsedTemplate, o.variable(styleResult.stylesVar), pipes);
+    var viewResult = _viewCompiler.compileComponent(compMeta, parsedTemplate,
+        styleResult, o.variable(styleResult.stylesVar), pipes);
     targetStatements.addAll(_resolveStyleStatements(styleResult));
     targetStatements.addAll(_resolveViewStatements(viewResult));
     return viewResult.viewFactoryVar;

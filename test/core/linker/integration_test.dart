@@ -1,16 +1,11 @@
-@TestOn('browser')
+@TestOn('browser && !js')
 library angular2.test.core.linker.integration_test;
 
 import "dart:async";
-import "package:angular2/testing_internal.dart";
-import "package:angular2/src/platform/dom/dom_adapter.dart" show DOM;
-import "package:angular2/src/platform/browser/browser_adapter.dart"
-    show BrowserDomAdapter;
-import "package:angular2/src/facade/lang.dart"
-    show isPresent, stringify, isBlank;
-import "package:angular2/src/facade/exceptions.dart" show BaseException;
-import "package:angular2/src/facade/async.dart"
-    show PromiseWrapper, EventEmitter, ObservableWrapper, PromiseCompleter;
+
+import "package:angular2/common.dart" show NgIf, NgFor;
+import "package:angular2/common.dart" show AsyncPipe;
+import "package:angular2/compiler.dart" show CompilerConfig;
 import "package:angular2/core.dart"
     show
         Injector,
@@ -21,41 +16,42 @@ import "package:angular2/core.dart"
         Inject,
         Host,
         SkipSelf,
-        SkipSelfMetadata,
         OnDestroy,
         ReflectiveInjector;
-import "package:angular2/common.dart" show NgIf, NgFor;
-import "package:angular2/common.dart" show AsyncPipe;
 import "package:angular2/src/core/change_detection/change_detection.dart"
     show PipeTransform, ChangeDetectorRef, ChangeDetectionStrategy;
-import "package:angular2/compiler.dart" show CompilerConfig;
+import "package:angular2/src/core/linker/component_resolver.dart"
+    show ComponentResolver;
+import "package:angular2/src/core/linker/element_ref.dart" show ElementRef;
+import "package:angular2/src/core/linker/query_list.dart" show QueryList;
+import "package:angular2/src/core/linker/template_ref.dart";
+import "package:angular2/src/core/linker/view_container_ref.dart"
+    show ViewContainerRef;
+import "package:angular2/src/core/linker/view_ref.dart" show EmbeddedViewRef;
 import "package:angular2/src/core/metadata.dart"
     show
         Directive,
         Component,
-        ViewMetadata,
+        View,
         Attribute,
-        Query,
+        ContentChildren,
         Pipe,
         Input,
         Output,
         HostBinding,
         HostListener;
-import "package:angular2/src/core/linker/query_list.dart" show QueryList;
-import "package:angular2/src/core/linker/view_container_ref.dart"
-    show ViewContainerRef;
-import "package:angular2/src/core/linker/view_ref.dart" show EmbeddedViewRef;
-import "package:angular2/src/core/linker/component_resolver.dart"
-    show ComponentResolver;
-import "package:angular2/src/core/linker/element_ref.dart" show ElementRef;
-import "package:angular2/src/core/linker/template_ref.dart"
-    show TemplateRef_, TemplateRef;
 import "package:angular2/src/core/render.dart" show Renderer;
-import "package:angular2/src/facade/lang.dart" show IS_DART;
+import "package:angular2/src/facade/async.dart" show EventEmitter;
+import "package:angular2/src/facade/exceptions.dart" show BaseException;
+import "package:angular2/src/facade/lang.dart" show stringify;
+import "package:angular2/src/platform/browser/browser_adapter.dart"
+    show BrowserDomAdapter;
+import "package:angular2/src/platform/dom/dom_adapter.dart" show DOM;
+import "package:angular2/testing_internal.dart";
 import 'package:test/test.dart';
 
 const ANCHOR_ELEMENT = const OpaqueToken("AnchorElement");
-main() {
+void main() {
   bool isJit = false;
   BrowserDomAdapter.makeCurrent();
   group("integration tests", () {
@@ -69,7 +65,7 @@ main() {
             (TestComponentBuilder tcb, AsyncTestCompleter completer) {
           tcb
               .overrideView(
-                  MyComp, new ViewMetadata(template: "<div>{{ctxProp}}</div>"))
+                  MyComp, new View(template: "<div>{{ctxProp}}</div>"))
               .createAsync(MyComp)
               .then((fixture) {
             fixture.debugElement.componentInstance.ctxProp = "Hello World!";
@@ -86,8 +82,8 @@ main() {
         return inject([TestComponentBuilder, AsyncTestCompleter],
             (TestComponentBuilder tcb, AsyncTestCompleter completer) {
           tcb
-              .overrideView(MyComp,
-                  new ViewMetadata(template: "<div>{{null}}{{ctxProp}}</div>"))
+              .overrideView(
+                  MyComp, new View(template: "<div>{{null}}{{ctxProp}}</div>"))
               .createAsync(MyComp)
               .then((fixture) {
             fixture.debugElement.componentInstance.ctxProp = null;
@@ -101,8 +97,8 @@ main() {
         return inject([TestComponentBuilder, AsyncTestCompleter],
             (TestComponentBuilder tcb, AsyncTestCompleter completer) {
           tcb
-              .overrideView(MyComp,
-                  new ViewMetadata(template: "<div [id]=\"ctxProp\"></div>"))
+              .overrideView(
+                  MyComp, new View(template: "<div [id]=\"ctxProp\"></div>"))
               .createAsync(MyComp)
               .then((fixture) {
             fixture.debugElement.componentInstance.ctxProp = "Hello World!";
@@ -119,7 +115,7 @@ main() {
           tcb
               .overrideView(
                   MyComp,
-                  new ViewMetadata(
+                  new View(
                       template: "<div [attr.aria-label]=\"ctxProp\"></div>"))
               .createAsync(MyComp)
               .then((fixture) {
@@ -147,10 +143,8 @@ main() {
         inject([TestComponentBuilder, AsyncTestCompleter],
             (TestComponentBuilder tcb, AsyncTestCompleter completer) {
           tcb
-              .overrideView(
-                  MyComp,
-                  new ViewMetadata(
-                      template: "<div [attr.foo]=\"ctxProp\"></div>"))
+              .overrideView(MyComp,
+                  new View(template: "<div [attr.foo]=\"ctxProp\"></div>"))
               .createAsync(MyComp)
               .then((fixture) {
             fixture.debugElement.componentInstance.ctxProp = "bar";
@@ -176,7 +170,7 @@ main() {
           tcb
               .overrideView(
                   MyComp,
-                  new ViewMetadata(
+                  new View(
                       template: "<div [style.height.px]=\"ctxProp\"></div>"))
               .createAsync(MyComp)
               .then((fixture) {
@@ -202,10 +196,8 @@ main() {
         return inject([TestComponentBuilder, AsyncTestCompleter],
             (TestComponentBuilder tcb, AsyncTestCompleter completer) {
           tcb
-              .overrideView(
-                  MyComp,
-                  new ViewMetadata(
-                      template: "<div [tabindex]=\"ctxNumProp\"></div>"))
+              .overrideView(MyComp,
+                  new View(template: "<div [tabindex]=\"ctxNumProp\"></div>"))
               .createAsync(MyComp)
               .then((fixture) {
             fixture.detectChanges();
@@ -221,10 +213,8 @@ main() {
         return inject([TestComponentBuilder, AsyncTestCompleter],
             (TestComponentBuilder tcb, AsyncTestCompleter completer) {
           tcb
-              .overrideView(
-                  MyComp,
-                  new ViewMetadata(
-                      template: "<input [readOnly]=\"ctxBoolProp\">"))
+              .overrideView(MyComp,
+                  new View(template: "<input [readOnly]=\"ctxBoolProp\">"))
               .createAsync(MyComp)
               .then((fixture) {
             fixture.detectChanges();
@@ -242,10 +232,8 @@ main() {
         return inject([TestComponentBuilder, AsyncTestCompleter],
             (TestComponentBuilder tcb, AsyncTestCompleter completer) {
           tcb
-              .overrideView(
-                  MyComp,
-                  new ViewMetadata(
-                      template: "<div innerHtml=\"{{ctxProp}}\"></div>"))
+              .overrideView(MyComp,
+                  new View(template: "<div innerHtml=\"{{ctxProp}}\"></div>"))
               .createAsync(MyComp)
               .then((fixture) {
             fixture.debugElement.componentInstance.ctxProp =
@@ -272,7 +260,7 @@ main() {
           tcb
               .overrideView(
                   MyComp,
-                  new ViewMetadata(
+                  new View(
                       template:
                           "<div class=\"initial\" [class]=\"ctxProp\"></div>"))
               .createAsync(MyComp)
@@ -298,7 +286,7 @@ main() {
               "</span>";
           tcb
               .overrideView(
-                  MyComp, new ViewMetadata(template: tpl, directives: [MyDir]))
+                  MyComp, new View(template: tpl, directives: [MyDir]))
               .createAsync(MyComp)
               .then((fixture) {
             fixture.debugElement.componentInstance.ctxProp = "Hello World!";
@@ -323,7 +311,7 @@ main() {
             tcb
                 .overrideView(
                     MyComp,
-                    new ViewMetadata(
+                    new View(
                         template:
                             "<div my-dir #dir=\"mydir\" [elprop]=\"ctxProp | double\"></div>",
                         directives: [MyDir],
@@ -345,7 +333,7 @@ main() {
           tcb
               .overrideView(
                   MyComp,
-                  new ViewMetadata(
+                  new View(
                       template: "<child-cmp></child-cmp>",
                       directives: [ChildComp]))
               .createAsync(MyComp)
@@ -363,7 +351,7 @@ main() {
           tcb
               .overrideView(
                   MyComp,
-                  new ViewMetadata(
+                  new View(
                       template:
                           "<child-cmp my-dir [elprop]=\"ctxProp\"></child-cmp>",
                       directives: [MyDir, ChildComp]))
@@ -383,10 +371,8 @@ main() {
         return inject([TestComponentBuilder, AsyncTestCompleter],
             (TestComponentBuilder tcb, AsyncTestCompleter completer) {
           tcb
-              .overrideView(
-                  MyComp,
-                  new ViewMetadata(
-                      template: "<p my-dir></p>", directives: [MyDir]))
+              .overrideView(MyComp,
+                  new View(template: "<p my-dir></p>", directives: [MyDir]))
               .createAsync(MyComp)
               .then((fixture) {
             completer.done();
@@ -401,16 +387,14 @@ main() {
           tcb
               .overrideView(
                   MyComp,
-                  new ViewMetadata(
-                      template: "<p no-duplicate></p>",
-                      directives: [
-                        DuplicateDir,
-                        DuplicateDir,
-                        [
-                          DuplicateDir,
-                          [DuplicateDir]
-                        ]
-                      ]))
+                  new View(template: "<p no-duplicate></p>", directives: [
+                    DuplicateDir,
+                    DuplicateDir,
+                    [
+                      DuplicateDir,
+                      [DuplicateDir]
+                    ]
+                  ]))
               .createAsync(MyComp)
               .then((fixture) {
             expect(fixture.debugElement.nativeElement,
@@ -427,7 +411,7 @@ main() {
           tcb
               .overrideView(
                   MyComp,
-                  new ViewMetadata(
+                  new View(
                       template: "<p [id]=\"ctxProp\"></p>",
                       directives: [IdDir]))
               .createAsync(MyComp)
@@ -451,7 +435,7 @@ main() {
           tcb
               .overrideView(
                   MyComp,
-                  new ViewMetadata(
+                  new View(
                       template: "<p (customEvent)=\"doNothing()\"></p>",
                       directives: [EventDir]))
               .createAsync(MyComp)
@@ -469,7 +453,7 @@ main() {
           tcb
               .overrideView(
                   MyComp,
-                  new ViewMetadata(
+                  new View(
                       template:
                           "<div public-api><div needs-public-api></div></div>",
                       directives: [PrivateImpl, NeedsPublicApi]))
@@ -486,7 +470,7 @@ main() {
           tcb
               .overrideView(
                   MyComp,
-                  new ViewMetadata(
+                  new View(
                       template:
                           "<template some-viewport let-greeting=\"some-tmpl\"><copy-me>{{greeting}}</copy-me></template>",
                       directives: [SomeViewport]))
@@ -511,7 +495,7 @@ main() {
           tcb
               .overrideView(
                   MyComp,
-                  new ViewMetadata(
+                  new View(
                       template:
                           "<div *ngIf=\"ctxBoolProp\"><template some-viewport let-greeting=\"someTmpl\"><span>{{greeting}}</span></template></div>",
                       directives: [SomeViewport, NgIf]))
@@ -537,8 +521,7 @@ main() {
         return inject([TestComponentBuilder, AsyncTestCompleter],
             (TestComponentBuilder tcb, AsyncTestCompleter completer) {
           tcb
-              .overrideView(
-                  MyComp, new ViewMetadata(template: "<template></template>"))
+              .overrideView(MyComp, new View(template: "<template></template>"))
               .createAsync(MyComp)
               .then((fixture) {
             var childNodesOfWrapper =
@@ -556,7 +539,7 @@ main() {
           tcb
               .overrideView(
                   MyComp,
-                  new ViewMetadata(
+                  new View(
                       template:
                           "<copy-me template=\"some-viewport: let greeting=some-tmpl\">{{greeting}}</copy-me>",
                       directives: [SomeViewport]))
@@ -580,7 +563,7 @@ main() {
           tcb
               .overrideView(
                   MyComp,
-                  new ViewMetadata(
+                  new View(
                       template:
                           "<some-directive><toolbar><template toolbarpart let-toolbarProp=\"toolbarProp\">{{ctxProp}},{{toolbarProp}},<cmp-with-host></cmp-with-host></template></toolbar></some-directive>",
                       directives: [
@@ -608,7 +591,7 @@ main() {
             tcb
                 .overrideView(
                     MyComp,
-                    new ViewMetadata(
+                    new View(
                         template: "<p><child-cmp ref-alice></child-cmp></p>",
                         directives: [ChildComp]))
                 .createAsync(MyComp)
@@ -627,7 +610,7 @@ main() {
             tcb
                 .overrideView(
                     MyComp,
-                    new ViewMetadata(
+                    new View(
                         template:
                             "<div><div export-dir #localdir=\"dir\"></div></div>",
                         directives: [ExportDir]))
@@ -650,7 +633,7 @@ main() {
             tcb
                 .overrideView(
                     MyComp,
-                    new ViewMetadata(
+                    new View(
                         template:
                             "<template [ngIf]=\"true\">{{alice.ctxProp}}</template>|{{alice.ctxProp}}|<child-cmp ref-alice></child-cmp>",
                         directives: [ChildComp, NgIf]))
@@ -670,7 +653,7 @@ main() {
             tcb
                 .overrideView(
                     MyComp,
-                    new ViewMetadata(
+                    new View(
                         template:
                             "<p><child-cmp ref-alice></child-cmp><child-cmp ref-bob></child-cmp></p>",
                         directives: [ChildComp]))
@@ -693,7 +676,7 @@ main() {
             tcb
                 .overrideView(
                     MyComp,
-                    new ViewMetadata(
+                    new View(
                         template: "<child-cmp #alice></child-cmp>",
                         directives: [ChildComp]))
                 .createAsync(MyComp)
@@ -711,7 +694,7 @@ main() {
             tcb
                 .overrideView(
                     MyComp,
-                    new ViewMetadata(
+                    new View(
                         template:
                             "<div><div ref-alice><i>Hello</i></div></div>"))
                 .createAsync(MyComp)
@@ -729,14 +712,12 @@ main() {
           return inject([TestComponentBuilder, AsyncTestCompleter],
               (TestComponentBuilder tcb, AsyncTestCompleter completer) {
             tcb
-                .overrideView(
-                    MyComp,
-                    new ViewMetadata(
-                        template: "<template ref-alice></template>"))
+                .overrideView(MyComp,
+                    new View(template: "<template ref-alice></template>"))
                 .createAsync(MyComp)
                 .then((fixture) {
               var value = fixture.debugElement.childNodes[0].getLocal("alice");
-              expect(value, new isInstanceOf<TemplateRef_>());
+              expect(value, new isInstanceOf<TemplateRef>());
               completer.done();
             });
           });
@@ -747,7 +728,7 @@ main() {
             tcb
                 .overrideView(
                     MyComp,
-                    new ViewMetadata(
+                    new View(
                         template:
                             "<p><child-cmp ref-superAlice></child-cmp></p>",
                         directives: [ChildComp]))
@@ -769,7 +750,7 @@ main() {
             tcb
                 .overrideView(
                     MyComp,
-                    new ViewMetadata(
+                    new View(
                         template:
                             "<template ngFor [ngForOf]=\"[1]\" let-i><child-cmp-no-template #cmp></child-cmp-no-template>{{i}}-{{cmp.ctxProp}}</template>",
                         directives: [ChildCompNoTemplate, NgFor]))
@@ -792,7 +773,7 @@ main() {
             tcb
                 .overrideView(
                     MyComp,
-                    new ViewMetadata(
+                    new View(
                         template:
                             "<push-cmp-with-ref #cmp></push-cmp-with-ref>",
                         directives: [
@@ -820,7 +801,7 @@ main() {
             tcb
                 .overrideView(
                     MyComp,
-                    new ViewMetadata(
+                    new View(
                         template:
                             "<push-cmp [prop]=\"ctxProp\" #cmp></push-cmp>",
                         directives: [
@@ -849,7 +830,7 @@ main() {
             tcb
                 .overrideView(
                     MyComp,
-                    new ViewMetadata(
+                    new View(
                         template:
                             "<push-cmp-with-host-event></push-cmp-with-host-event>",
                         directives: [
@@ -877,7 +858,7 @@ main() {
             tcb
                 .overrideView(
                     MyComp,
-                    new ViewMetadata(
+                    new View(
                         template:
                             "<push-cmp [prop]=\"ctxProp\" #cmp></push-cmp>",
                         directives: [
@@ -918,7 +899,7 @@ main() {
             tcb
                 .overrideView(
                     MyComp,
-                    new ViewMetadata(
+                    new View(
                         template:
                             "<push-cmp-with-ref [prop]=\"ctxProp\" #cmp></push-cmp-with-ref>",
                         directives: [
@@ -944,7 +925,7 @@ main() {
           inject([TestComponentBuilder], (TestComponentBuilder tcb) {
             tcb = tcb.overrideView(
                 MyComp,
-                new ViewMetadata(
+                new View(
                     template:
                         "<push-cmp-with-async #cmp></push-cmp-with-async>",
                     directives: [
@@ -977,7 +958,7 @@ main() {
             tcb
                 .overrideView(
                     MyComp,
-                    new ViewMetadata(
+                    new View(
                         template: '''
             <some-directive>
               <p>
@@ -1002,7 +983,7 @@ main() {
             tcb
                 .overrideView(
                     MyComp,
-                    new ViewMetadata(
+                    new View(
                         template: '''
             <some-directive>
               <p *ngIf="true">
@@ -1027,7 +1008,7 @@ main() {
             tcb
                 .overrideView(
                     MyComp,
-                    new ViewMetadata(
+                    new View(
                         template: "<div emitter listener></div>",
                         directives: [
                           DirectiveEmittingEvent,
@@ -1040,7 +1021,7 @@ main() {
               var listener = tc.inject(DirectiveListeningEvent);
               expect(listener.msg, "");
               var eventCount = 0;
-              ObservableWrapper.subscribe(emitter.event, (_) {
+              emitter.event.listen((_) {
                 eventCount++;
                 if (identical(eventCount, 1)) {
                   expect(listener.msg, "fired !");
@@ -1062,7 +1043,7 @@ main() {
             tcb
                 .overrideView(
                     MyComp,
-                    new ViewMetadata(
+                    new View(
                         template:
                             "<template emitter listener (event)=\"ctxProp=\$event\"></template>",
                         directives: [
@@ -1077,7 +1058,7 @@ main() {
               var listener = tc.inject(DirectiveListeningEvent);
               myComp.ctxProp = "";
               expect(listener.msg, "");
-              ObservableWrapper.subscribe(emitter.event, (_) {
+              emitter.event.listen((_) {
                 expect(listener.msg, "fired !");
                 expect(myComp.ctxProp, "fired !");
                 completer.done();
@@ -1092,7 +1073,7 @@ main() {
             tcb
                 .overrideView(
                     MyComp,
-                    new ViewMetadata(
+                    new View(
                         template: "<div [(control)]=\"ctxProp\" two-way></div>",
                         directives: [DirectiveWithTwoWayBinding]))
                 .createAsync(MyComp)
@@ -1102,7 +1083,7 @@ main() {
               fixture.debugElement.componentInstance.ctxProp = "one";
               fixture.detectChanges();
               expect(dir.control, "one");
-              ObservableWrapper.subscribe(dir.controlChange, (_) {
+              dir.controlChange.listen((_) {
                 expect(fixture.debugElement.componentInstance.ctxProp, "two");
                 completer.done();
               });
@@ -1116,7 +1097,7 @@ main() {
             tcb
                 .overrideView(
                     MyComp,
-                    new ViewMetadata(
+                    new View(
                         template: "<div listener></div>",
                         directives: [DirectiveListeningDomEvent]))
                 .createAsync(MyComp)
@@ -1124,43 +1105,8 @@ main() {
               var tc = fixture.debugElement.children[0];
               var listener = tc.inject(DirectiveListeningDomEvent);
               dispatchEvent(tc.nativeElement, "domEvent");
-              expect(listener.eventTypes, [
-                "domEvent",
-                "body_domEvent",
-                "document_domEvent",
-                "window_domEvent"
-              ]);
+              expect(listener.eventTypes, ["domEvent"]);
               fixture.destroy();
-              listener.eventTypes = [];
-              dispatchEvent(tc.nativeElement, "domEvent");
-              expect(listener.eventTypes, []);
-              completer.done();
-            });
-          });
-        });
-        test("should support render global events", () async {
-          return inject([TestComponentBuilder, AsyncTestCompleter],
-              (TestComponentBuilder tcb, AsyncTestCompleter completer) {
-            tcb
-                .overrideView(
-                    MyComp,
-                    new ViewMetadata(
-                        template: "<div listener></div>",
-                        directives: [DirectiveListeningDomEvent]))
-                .createAsync(MyComp)
-                .then((fixture) {
-              var tc = fixture.debugElement.children[0];
-              var listener = tc.inject(DirectiveListeningDomEvent);
-              dispatchEvent(DOM.getGlobalEventTarget("window"), "domEvent");
-              expect(listener.eventTypes, ["window_domEvent"]);
-              listener.eventTypes = [];
-              dispatchEvent(DOM.getGlobalEventTarget("document"), "domEvent");
-              expect(listener.eventTypes,
-                  ["document_domEvent", "window_domEvent"]);
-              fixture.destroy();
-              listener.eventTypes = [];
-              dispatchEvent(DOM.getGlobalEventTarget("body"), "domEvent");
-              expect(listener.eventTypes, []);
               completer.done();
             });
           });
@@ -1172,7 +1118,7 @@ main() {
             tcb
                 .overrideView(
                     MyComp,
-                    new ViewMetadata(
+                    new View(
                         template: "<div update-host-attributes></div>",
                         directives: [DirectiveUpdatingHostAttributes]))
                 .createAsync(MyComp)
@@ -1193,7 +1139,7 @@ main() {
             tcb
                 .overrideView(
                     MyComp,
-                    new ViewMetadata(
+                    new View(
                         template: "<div update-host-properties></div>",
                         directives: [DirectiveUpdatingHostProperties]))
                 .createAsync(MyComp)
@@ -1214,7 +1160,7 @@ main() {
             tcb
                 .overrideView(
                     MyComp,
-                    new ViewMetadata(
+                    new View(
                         template:
                             "<input type=\"checkbox\" listenerprevent><input type=\"checkbox\" listenernoprevent>",
                         directives: [
@@ -1243,47 +1189,6 @@ main() {
             });
           });
         });
-        test("should support render global events from multiple directives",
-            () async {
-          return inject([TestComponentBuilder, AsyncTestCompleter],
-              (TestComponentBuilder tcb, AsyncTestCompleter completer) {
-            tcb
-                .overrideView(
-                    MyComp,
-                    new ViewMetadata(
-                        template:
-                            "<div *ngIf=\"ctxBoolProp\" listener listenerother></div>",
-                        directives: [
-                          NgIf,
-                          DirectiveListeningDomEvent,
-                          DirectiveListeningDomEventOther
-                        ]))
-                .createAsync(MyComp)
-                .then((fixture) {
-              globalCounter = 0;
-              fixture.debugElement.componentInstance.ctxBoolProp = true;
-              fixture.detectChanges();
-              var tc = fixture.debugElement.children[0];
-              var listener = tc.inject(DirectiveListeningDomEvent);
-              var otherListener = tc.inject(DirectiveListeningDomEventOther);
-              dispatchEvent(DOM.getGlobalEventTarget("window"), "domEvent");
-              expect(listener.eventTypes, ["window_domEvent"]);
-              expect(otherListener.eventType, "other_domEvent");
-              expect(globalCounter, 1);
-              fixture.debugElement.componentInstance.ctxBoolProp = false;
-              fixture.detectChanges();
-              dispatchEvent(DOM.getGlobalEventTarget("window"), "domEvent");
-              expect(globalCounter, 1);
-              fixture.debugElement.componentInstance.ctxBoolProp = true;
-              fixture.detectChanges();
-              dispatchEvent(DOM.getGlobalEventTarget("window"), "domEvent");
-              expect(globalCounter, 2);
-              // need to destroy to release all remaining global event listeners
-              fixture.destroy();
-              completer.done();
-            });
-          });
-        });
         group("dynamic ViewContainers", () {
           test(
               "should allow to create a ViewContainerRef at any bound location",
@@ -1295,7 +1200,7 @@ main() {
               tcb
                   .overrideView(
                       MyComp,
-                      new ViewMetadata(
+                      new View(
                           template:
                               "<div><dynamic-vp #dynamic></dynamic-vp></div>",
                           directives: [DynamicViewport]))
@@ -1321,7 +1226,7 @@ main() {
             tcb
                 .overrideView(
                     MyComp,
-                    new ViewMetadata(
+                    new View(
                         template: "<input static type=\"text\" title>",
                         directives: [NeedsAttribute]))
                 .createAsync(MyComp)
@@ -1343,7 +1248,7 @@ main() {
             tcb
                 .overrideView(
                     MyComp,
-                    new ViewMetadata(
+                    new View(
                         template: '''
             <directive-providing-injectable >
               <directive-consuming-injectable #consuming>
@@ -1368,7 +1273,7 @@ main() {
             tcb
                 .overrideView(
                     DirectiveProvidingInjectableInView,
-                    new ViewMetadata(
+                    new View(
                         template: '''
               <directive-consuming-injectable #consuming>
               </directive-consuming-injectable>
@@ -1388,7 +1293,7 @@ main() {
             tcb
                 .overrideView(
                     MyComp,
-                    new ViewMetadata(
+                    new View(
                         template: '''
             <directive-providing-injectable>
               <directive-containing-directive-consuming-an-injectable #dir>
@@ -1401,7 +1306,7 @@ main() {
                         ]))
                 .overrideView(
                     DirectiveContainingDirectiveConsumingAnInjectable,
-                    new ViewMetadata(
+                    new View(
                         template: '''
             <directive-consuming-injectable-unbounded></directive-consuming-injectable-unbounded>
           ''',
@@ -1421,7 +1326,7 @@ main() {
             tcb
                 .overrideView(
                     MyComp,
-                    new ViewMetadata(
+                    new View(
                         template: '''
             <grand-parent-providing-event-bus>
               <parent-providing-event-bus>
@@ -1457,7 +1362,7 @@ main() {
             tcb
                 .overrideView(
                     MyComp,
-                    new ViewMetadata(
+                    new View(
                         template: '''
               <component-providing-logging-injectable #providing>
                 <directive-consuming-injectable *ngIf="ctxBoolProp">
@@ -1487,7 +1392,10 @@ main() {
           return inject([TestComponentBuilder, AsyncTestCompleter],
               (TestComponentBuilder tcb, AsyncTestCompleter completer) {
             tcb
-                .overrideView(MyComp, new ViewMetadata(template: '''
+                .overrideView(
+                    MyComp,
+                    new View(
+                        template: '''
             <script>alert("Ooops");</script>
             <div>before<script>alert("Ooops");</script><span>inside</span>after</div>'''))
                 .createAsync(MyComp)
@@ -1509,10 +1417,10 @@ main() {
               (TestComponentBuilder tcb, AsyncTestCompleter completer) {
             tcb = tcb.overrideView(
                 MyComp,
-                new ViewMetadata(
+                new View(
                     template: "",
                     directives: [SomeDirectiveMissingAnnotation]));
-            PromiseWrapper.catchError(tcb.createAsync(MyComp), (e) {
+            tcb.createAsync(MyComp).catchError((e) {
               expect(
                   e.message,
                   '''No Directive annotation found on ${ stringify(
@@ -1543,10 +1451,10 @@ main() {
               (TestComponentBuilder tcb, AsyncTestCompleter completer) {
             tcb = tcb.overrideView(
                 MyComp,
-                new ViewMetadata(directives: [
+                new View(directives: [
                   [null]
                 ], template: ""));
-            PromiseWrapper.catchError(tcb.createAsync(MyComp), (e) {
+            tcb.createAsync(MyComp).catchError((e) {
               expect(
                   e.message,
                   '''Unexpected directive value \'null\' on the View of component \'${ stringify(
@@ -1562,11 +1470,11 @@ main() {
               (TestComponentBuilder tcb, AsyncTestCompleter completer) {
             tcb = tcb.overrideView(
                 MyComp,
-                new ViewMetadata(
+                new View(
                     directives: [DirectiveThrowingAnError],
                     template:
                         '''<directive-throwing-error></directive-throwing-error>'''));
-            PromiseWrapper.catchError(tcb.createAsync(MyComp), (e) {
+            tcb.createAsync(MyComp).catchError((e) {
               var c = e.context;
               expect(
                   DOM.nodeName(c.componentRenderElement).toUpperCase(), "DIV");
@@ -1583,21 +1491,16 @@ main() {
               (TestComponentBuilder tcb, AsyncTestCompleter completer) {
             tcb = tcb.overrideView(
                 MyComp,
-                new ViewMetadata(
+                new View(
                     template: '''<input [value]="one.two.three" #local>'''));
             tcb.createAsync(MyComp).then((fixture) {
               try {
                 fixture.detectChanges();
                 throw "Should throw";
               } catch (e) {
-                var c = e.context;
-                expect(DOM.nodeName(c.renderNode).toUpperCase(), "INPUT");
-                expect(DOM.nodeName(c.componentRenderElement).toUpperCase(),
-                    "DIV");
-                expect((c.injector as Injector).get, isNotNull);
-                expect(c.source, contains(":0:7"));
-                expect(c.context, fixture.debugElement.componentInstance);
-                expect(c.locals["local"], isNotNull);
+                var msg = e.toString();
+                expect(msg,
+                    contains("Class 'MyComp' has no instance getter 'one'"));
                 completer.done();
               }
             });
@@ -1608,16 +1511,16 @@ main() {
             () async {
           return inject([TestComponentBuilder, AsyncTestCompleter],
               (TestComponentBuilder tcb, AsyncTestCompleter completer) {
-            tcb = tcb.overrideView(MyComp,
-                new ViewMetadata(template: '''<div>{{one.two.three}}</div>'''));
+            tcb = tcb.overrideView(
+                MyComp, new View(template: '''<div>{{one.two.three}}</div>'''));
             tcb.createAsync(MyComp).then((fixture) {
               try {
                 fixture.detectChanges();
                 throw "Should throw";
               } catch (e) {
-                var c = e.context;
-                expect(c.renderNode, isNotNull);
-                expect(c.source, contains(":0:5"));
+                var msg = e.toString();
+                expect(msg,
+                    contains("Class 'MyComp' has no instance getter 'one'"));
                 completer.done();
               }
             });
@@ -1629,7 +1532,7 @@ main() {
           inject([TestComponentBuilder], (TestComponentBuilder tcb) {
             tcb = tcb.overrideView(
                 MyComp,
-                new ViewMetadata(
+                new View(
                     template:
                         '''<span emitter listener (event)="throwError()" #local></span>''',
                     directives: [
@@ -1643,19 +1546,8 @@ main() {
             tick();
             var tc = fixture.debugElement.children[0];
             tc.inject(DirectiveEmittingEvent).fireEvent("boom");
-            try {
-              tick();
-              throw "Should throw";
-            } catch (e) {
-              clearPendingTimers();
-              var c = e.context;
-              expect(DOM.nodeName(c.renderNode).toUpperCase(), "SPAN");
-              expect(
-                  DOM.nodeName(c.componentRenderElement).toUpperCase(), "DIV");
-              expect(((c.injector as Injector)).get, isNotNull);
-              expect(c.context, fixture.debugElement.componentInstance);
-              expect(c.locals["local"], isNotNull);
-            }
+            expect(() => tick(), throws);
+            clearPendingTimers();
           });
         }));
         test("should report a meaningful error when a directive is undefined",
@@ -1663,9 +1555,9 @@ main() {
           return inject([TestComponentBuilder, AsyncTestCompleter],
               (TestComponentBuilder tcb, AsyncTestCompleter completer) {
             var undefinedValue;
-            tcb = tcb.overrideView(MyComp,
-                new ViewMetadata(directives: [undefinedValue], template: ""));
-            PromiseWrapper.catchError(tcb.createAsync(MyComp), (e) {
+            tcb = tcb.overrideView(
+                MyComp, new View(directives: [undefinedValue], template: ""));
+            tcb.createAsync(MyComp).catchError((e) {
               expect(
                   e.message,
                   '''Unexpected directive value \'null\' on the View of component \'${ stringify(
@@ -1681,11 +1573,11 @@ main() {
           return inject([TestComponentBuilder, AsyncTestCompleter],
               (TestComponentBuilder tcb, AsyncTestCompleter completer) {
             tcb
-                .overrideView(
-                    MyComp, new ViewMetadata(template: "<div>{{a.b}}</div>"))
+                .overrideView(MyComp, new View(template: "<div>{{a.b}}</div>"))
                 .createAsync(MyComp)
                 .then((fixture) {
-              expect(() => fixture.detectChanges(), throwsWith(':0:5'));
+              expect(() => fixture.detectChanges(),
+                  throwsWith("Class 'MyComp' has no instance getter 'a'"));
               completer.done();
             });
           });
@@ -1696,11 +1588,12 @@ main() {
           return inject([TestComponentBuilder, AsyncTestCompleter],
               (TestComponentBuilder tcb, AsyncTestCompleter completer) {
             tcb
-                .overrideView(MyComp,
-                    new ViewMetadata(template: "<div [title]=\"a.b\"></div>"))
+                .overrideView(
+                    MyComp, new View(template: "<div [title]=\"a.b\"></div>"))
                 .createAsync(MyComp)
                 .then((fixture) {
-              expect(() => fixture.detectChanges(), throwsWith(':0:5' ''));
+              expect(() => fixture.detectChanges(),
+                  throwsWith("Class 'MyComp' has no instance getter 'a'"));
               completer.done();
             });
           });
@@ -1713,12 +1606,13 @@ main() {
             tcb
                 .overrideView(
                     MyComp,
-                    new ViewMetadata(
+                    new View(
                         template: "<child-cmp [title]=\"a.b\"></child-cmp>",
                         directives: [ChildComp]))
                 .createAsync(MyComp)
                 .then((fixture) {
-              expect(() => fixture.detectChanges(), throwsWith(':0:11' ''));
+              expect(() => fixture.detectChanges(),
+                  throwsWith("Class 'MyComp' has no instance getter 'a'"));
               completer.done();
             });
           });
@@ -1729,7 +1623,7 @@ main() {
             tcb
                 .overrideView(
                     MyComp,
-                    new ViewMetadata(
+                    new View(
                         template: "<simple-imp-cmp></simple-imp-cmp>",
                         directives: [SimpleImperativeViewComponent]))
                 .createAsync(MyComp)
@@ -1749,7 +1643,7 @@ main() {
             tcb
                 .overrideView(
                     MyComp,
-                    new ViewMetadata(
+                    new View(
                         template:
                             "<div><div *someImpvp=\"ctxBoolProp\">hello</div></div>",
                         directives: [SomeImperativeViewport]))
@@ -1771,15 +1665,13 @@ main() {
           test("should throw on bindings to unknown properties", () async {
             return inject([TestComponentBuilder, AsyncTestCompleter],
                 (TestComponentBuilder tcb, AsyncTestCompleter completer) {
-              tcb = tcb.overrideView(
-                  MyComp,
-                  new ViewMetadata(
-                      template: "<div unknown=\"{{ctxProp}}\"></div>"));
-              PromiseWrapper.catchError(tcb.createAsync(MyComp), (e) {
+              tcb = tcb.overrideView(MyComp,
+                  new View(template: "<div unknown=\"{{ctxProp}}\"></div>"));
+              tcb.createAsync(MyComp).catchError((e) {
                 expect(
                     e.message,
                     '''Template parse errors:
-Can\'t bind to \'unknown\' since it isn\'t a known native property ("<div [ERROR ->]unknown="{{ctxProp}}"></div>"): MyComp@0:5''');
+Can\'t bind to \'unknown\' since it isn\'t a known native property or known directive. Please fix typo or add to directives list. ("<div [ERROR ->]unknown="{{ctxProp}}"></div>"): MyComp@0:5''');
                 completer.done();
                 return null;
               });
@@ -1793,7 +1685,7 @@ Can\'t bind to \'unknown\' since it isn\'t a known native property ("<div [ERROR
               tcb
                   .overrideView(
                       MyComp,
-                      new ViewMetadata(
+                      new View(
                           template: "<div my-dir [elprop]=\"ctxProp\"></div>",
                           directives: [MyDir]))
                   .createAsync(MyComp)
@@ -1811,7 +1703,7 @@ Can\'t bind to \'unknown\' since it isn\'t a known native property ("<div [ERROR
               tcb
                   .overrideView(
                       MyComp,
-                      new ViewMetadata(
+                      new View(
                           template: "<span [title]=\"ctxProp\"></span>",
                           directives: [DirectiveWithTitle]))
                   .createAsync(MyComp)
@@ -1820,7 +1712,7 @@ Can\'t bind to \'unknown\' since it isn\'t a known native property ("<div [ERROR
                 fixture.detectChanges();
                 var el = DOM.querySelector(
                     fixture.debugElement.nativeElement, "span");
-                expect(isBlank(el.title) || el.title == "", isTrue);
+                expect(el.title == null || el.title == "", isTrue);
                 completer.done();
               });
             });
@@ -1833,7 +1725,7 @@ Can\'t bind to \'unknown\' since it isn\'t a known native property ("<div [ERROR
               tcb
                   .overrideView(
                       MyComp,
-                      new ViewMetadata(
+                      new View(
                           template: "<span [title]=\"ctxProp\"></span>",
                           directives: [DirectiveWithTitleAndHostProperty]))
                   .createAsync(MyComp)
@@ -1861,14 +1753,14 @@ Can\'t bind to \'unknown\' since it isn\'t a known native property ("<div [ERROR
                   "<div my-dir [elprop]=\"ctxProp\"></div>" +
                   "</div>";
               tcb
-                  .overrideView(MyComp,
-                      new ViewMetadata(template: tpl, directives: [MyDir]))
+                  .overrideView(
+                      MyComp, new View(template: tpl, directives: [MyDir]))
                   .createAsync(MyComp)
                   .then((fixture) {
                 fixture.debugElement.componentInstance.ctxProp = "hello";
                 fixture.detectChanges();
                 expect(DOM.getInnerHTML(fixture.debugElement.nativeElement),
-                    contains('ng-reflect-dir-prop="hello"'));
+                    contains('ng-reflect-dirprop="hello"'));
                 completer.done();
               });
             });
@@ -1883,31 +1775,31 @@ Can\'t bind to \'unknown\' since it isn\'t a known native property ("<div [ERROR
                 (TestComponentBuilder tcb, AsyncTestCompleter completer) {
               var tpl = "<template [ngIf]=\"ctxBoolProp\"></template>";
               tcb
-                  .overrideView(MyComp,
-                      new ViewMetadata(template: tpl, directives: [NgIf]))
+                  .overrideView(
+                      MyComp, new View(template: tpl, directives: [NgIf]))
                   .createAsync(MyComp)
                   .then((fixture) {
                 fixture.debugElement.componentInstance.ctxBoolProp = true;
                 fixture.detectChanges();
                 expect(DOM.getInnerHTML(fixture.debugElement.nativeElement),
-                    contains('"ng-reflect-ng-if": "true"'));
+                    contains('"ng-reflect-ngIf": "true"'));
                 completer.done();
               });
             });
           });
         });
         group("Missing directive checks", () {
-          expectCompileError(tcb, inlineTpl, errMessage, done) {
-            tcb =
-                tcb.overrideView(MyComp, new ViewMetadata(template: inlineTpl));
-            PromiseWrapper.then(tcb.createAsync(MyComp), (value) {
+          void expectCompileError(tcb, inlineTpl, errMessage, done) {
+            tcb = tcb.overrideView(MyComp, new View(template: inlineTpl));
+            tcb.createAsync(MyComp).then((value) {
               throw new BaseException(
                   "Test failure: should not have come here as an exception was expected");
-            }, (err) {
+            }, onError: (err) {
               expect(err.message, contains(errMessage));
               done();
             });
           }
+
 // TODO: future errors to surface.
           test(
               'should raise an error if no directive is registered for '
@@ -1919,7 +1811,8 @@ Can\'t bind to \'unknown\' since it isn\'t a known native property ("<div [ERROR
                   "<div><div template=\"if: foo\"></div></div>",
                   'Template parse errors:\n'
                   'Can\'t bind to \'if\' since it isn\'t a known native '
-                  'property ("<div><div [ERROR ->]template="if: foo">'
+                  'property or known directive. Please fix typo or add to '
+                  'directives list. ("<div><div [ERROR ->]template="if: foo">'
                   '</div></div>"): MyComp@0:10\n'
                   'Property binding if not used by any directive on an '
                   'embedded template ("<div>[ERROR ->]<div template="if: '
@@ -1960,7 +1853,7 @@ Can\'t bind to \'unknown\' since it isn\'t a known native property ("<div [ERROR
               tcb
                   .overrideView(
                       MyComp,
-                      new ViewMetadata(
+                      new View(
                           template:
                               "<with-prop-decorators elProp=\"aaa\"></with-prop-decorators>",
                           directives: [DirectiveWithPropDecorators]))
@@ -1980,7 +1873,7 @@ Can\'t bind to \'unknown\' since it isn\'t a known native property ("<div [ERROR
               tcb
                   .overrideView(
                       MyComp,
-                      new ViewMetadata(
+                      new View(
                           template:
                               "<with-prop-decorators></with-prop-decorators>",
                           directives: [DirectiveWithPropDecorators]))
@@ -2003,7 +1896,7 @@ Can\'t bind to \'unknown\' since it isn\'t a known native property ("<div [ERROR
             inject([TestComponentBuilder], (TestComponentBuilder tcb) {
               tcb = tcb.overrideView(
                   MyComp,
-                  new ViewMetadata(
+                  new View(
                       template:
                           '''<with-prop-decorators (elEvent)="ctxProp=\'called\'">''',
                       directives: [DirectiveWithPropDecorators]));
@@ -2025,7 +1918,7 @@ Can\'t bind to \'unknown\' since it isn\'t a known native property ("<div [ERROR
               tcb
                   .overrideView(
                       MyComp,
-                      new ViewMetadata(
+                      new View(
                           template:
                               "<with-prop-decorators></with-prop-decorators>",
                           directives: [DirectiveWithPropDecorators]))
@@ -2048,7 +1941,7 @@ Can\'t bind to \'unknown\' since it isn\'t a known native property ("<div [ERROR
               tcb
                   .overrideView(
                       MyComp,
-                      new ViewMetadata(
+                      new View(
                           template:
                               "<component-with-template></component-with-template>",
                           directives: [ComponentWithTemplate]))
@@ -2070,7 +1963,7 @@ Can\'t bind to \'unknown\' since it isn\'t a known native property ("<div [ERROR
               tcb
                   .overrideView(
                       MyComp,
-                      new ViewMetadata(
+                      new View(
                           template: "<svg><use xlink:href=\"Port\" /></svg>"))
                   .createAsync(MyComp)
                   .then((fixture) {
@@ -2081,16 +1974,37 @@ Can\'t bind to \'unknown\' since it isn\'t a known native property ("<div [ERROR
                     "http://www.w3.org/2000/svg");
                 expect(DOM.getProperty((use as dynamic), "namespaceURI"),
                     "http://www.w3.org/2000/svg");
-                if (!IS_DART) {
-                  var firstAttribute =
-                      DOM.getProperty((use as dynamic), "attributes")[0];
-                  expect(firstAttribute.name, "xlink:href");
-                  expect(firstAttribute.namespaceURI,
-                      "http://www.w3.org/1999/xlink");
-                } else {
-                  // For Dart where '_Attr' has no instance getter 'namespaceURI'
-                  expect(DOM.getOuterHTML(use), contains("xmlns:xlink"));
-                }
+                // For Dart where '_Attr' has no instance getter 'namespaceURI'
+                expect(DOM.getOuterHTML(use), contains("xmlns:xlink"));
+                completer.done();
+              });
+            });
+          });
+          test("should support svg elements", () async {
+            return inject([TestComponentBuilder, AsyncTestCompleter],
+                (TestComponentBuilder tcb, AsyncTestCompleter completer) {
+              tcb
+                  .overrideView(
+                      MyComp,
+                      new View(
+                          template: "<svg><foreignObject><xhtml:div>"
+                              "<p>Test</p></xhtml:div></foreignObject></svg>"))
+                  .createAsync(MyComp)
+                  .then((fixture) {
+                var el = fixture.debugElement.nativeElement;
+                var svg = DOM.childNodes(el)[0];
+                var foreignObject = DOM.childNodes(svg)[0];
+                var div = DOM.childNodes(foreignObject)[0];
+                var p = DOM.childNodes(div)[0];
+                expect(DOM.getProperty((svg as dynamic), "namespaceURI"),
+                    "http://www.w3.org/2000/svg");
+                expect(
+                    DOM.getProperty((foreignObject as dynamic), "namespaceURI"),
+                    "http://www.w3.org/2000/svg");
+                expect(DOM.getProperty((div as dynamic), "namespaceURI"),
+                    "http://www.w3.org/1999/xhtml");
+                expect(DOM.getProperty((p as dynamic), "namespaceURI"),
+                    "http://www.w3.org/1999/xhtml");
                 completer.done();
               });
             });
@@ -2101,10 +2015,8 @@ Can\'t bind to \'unknown\' since it isn\'t a known native property ("<div [ERROR
             return inject([TestComponentBuilder, AsyncTestCompleter],
                 (TestComponentBuilder tcb, AsyncTestCompleter completer) {
               tcb
-                  .overrideView(
-                      SomeCmp,
-                      new ViewMetadata(
-                          template: "<svg:use xlink:href=\"#id\" />"))
+                  .overrideView(SomeCmp,
+                      new View(template: "<svg:use xlink:href=\"#id\" />"))
                   .createAsync(SomeCmp)
                   .then((fixture) {
                 var useEl = DOM.firstChild(fixture.debugElement.nativeElement);
@@ -2122,7 +2034,7 @@ Can\'t bind to \'unknown\' since it isn\'t a known native property ("<div [ERROR
               tcb
                   .overrideView(
                       SomeCmp,
-                      new ViewMetadata(
+                      new View(
                           template: "<svg:use [attr.xlink:href]=\"value\" />"))
                   .createAsync(SomeCmp)
                   .then((fixture) {
@@ -2208,7 +2120,7 @@ class DirectiveWithTitleAndHostProperty {
 
 @Component(selector: "event-cmp", template: "<div (click)=\"noop()\"></div>")
 class EventCmp {
-  noop() {}
+  void noop() {}
 }
 
 @Component(
@@ -2225,8 +2137,8 @@ class PushCmp {
   PushCmp() {
     this.numberOfChecks = 0;
   }
-  noop() {}
-  get field {
+  void noop() {}
+  String get field {
     this.numberOfChecks++;
     return "fixed";
   }
@@ -2246,12 +2158,12 @@ class PushCmpWithRef {
     this.numberOfChecks = 0;
     this.ref = ref;
   }
-  get field {
+  String get field {
     this.numberOfChecks++;
     return "fixed";
   }
 
-  propagate() {
+  void propagate() {
     this.ref.markForCheck();
   }
 }
@@ -2273,19 +2185,19 @@ class PushCmpWithHostEvent {
 @Injectable()
 class PushCmpWithAsyncPipe {
   num numberOfChecks = 0;
-  Future<dynamic> promise;
-  PromiseCompleter<dynamic> completer;
+  Future<dynamic> future;
+  Completer completer;
   PushCmpWithAsyncPipe() {
-    this.completer = PromiseWrapper.completer();
-    this.promise = this.completer.promise;
+    this.completer = new Completer();
+    this.future = this.completer.future;
   }
   get field {
     this.numberOfChecks++;
-    return this.promise;
+    return this.future;
   }
 
   resolve(value) {
-    this.completer.resolve(value);
+    this.completer.complete(value);
   }
 }
 
@@ -2394,7 +2306,7 @@ class DirectiveEmittingEvent {
     this.event = new EventEmitter();
   }
   fireEvent(String msg) {
-    ObservableWrapper.callEmit(this.event, msg);
+    this.event.add(msg);
   }
 }
 
@@ -2425,44 +2337,12 @@ class DirectiveListeningEvent {
 
 @Directive(selector: "[listener]", host: const {
   "(domEvent)": "onEvent(\$event.type)",
-  "(window:domEvent)": "onWindowEvent(\$event.type)",
-  "(document:domEvent)": "onDocumentEvent(\$event.type)",
-  "(body:domEvent)": "onBodyEvent(\$event.type)"
 })
 @Injectable()
 class DirectiveListeningDomEvent {
   List<String> eventTypes = [];
   onEvent(String eventType) {
     this.eventTypes.add(eventType);
-  }
-
-  onWindowEvent(String eventType) {
-    this.eventTypes.add("window_" + eventType);
-  }
-
-  onDocumentEvent(String eventType) {
-    this.eventTypes.add("document_" + eventType);
-  }
-
-  onBodyEvent(String eventType) {
-    this.eventTypes.add("body_" + eventType);
-  }
-}
-
-var globalCounter = 0;
-
-@Directive(
-    selector: "[listenerother]",
-    host: const {"(window:domEvent)": "onEvent(\$event.type)"})
-@Injectable()
-class DirectiveListeningDomEventOther {
-  String eventType;
-  DirectiveListeningDomEventOther() {
-    this.eventType = "";
-  }
-  onEvent(String eventType) {
-    globalCounter++;
-    this.eventType = "other_" + eventType;
   }
 }
 
@@ -2549,7 +2429,7 @@ class ToolbarViewContainer {
     this.vc = vc;
   }
   set toolbarVc(ToolbarPart part) {
-    var view = this.vc.createEmbeddedView(part.templateRef, 0);
+    var view = this.vc.insertEmbeddedView(part.templateRef, 0);
     view.setLocal("toolbarProp", "From toolbar");
   }
 }
@@ -2563,7 +2443,7 @@ class ToolbarViewContainer {
 class ToolbarComponent {
   QueryList<ToolbarPart> query;
   String ctxProp;
-  ToolbarComponent(@Query(ToolbarPart) QueryList<ToolbarPart> query) {
+  ToolbarComponent(@ContentChildren(ToolbarPart) QueryList<ToolbarPart> query) {
     this.ctxProp = "hello world";
     this.query = query;
   }
@@ -2576,9 +2456,9 @@ class ToolbarComponent {
 @Injectable()
 class DirectiveWithTwoWayBinding {
   var controlChange = new EventEmitter();
-  var control = null;
+  var control;
   triggerChange(value) {
-    ObservableWrapper.callEmit(this.controlChange, value);
+    this.controlChange.add(value);
   }
 }
 
@@ -2677,7 +2557,7 @@ createParentBus(peb) {
     selector: "parent-providing-event-bus",
     providers: const [
       const Provider(EventBus, useFactory: createParentBus, deps: const [
-        const [EventBus, const SkipSelfMetadata()]
+        const [EventBus, const SkipSelf()]
       ])
     ],
     directives: const [ChildConsumingEventBus],
@@ -2714,7 +2594,7 @@ class SomeImperativeViewport {
     this.anchor = anchor;
   }
   set someImpvp(bool value) {
-    if (isPresent(this.view)) {
+    if (view != null) {
       this.vc.clear();
       this.view = null;
     }
@@ -2781,7 +2661,7 @@ class DirectiveWithPropDecorators {
   }
 
   fireEvent(msg) {
-    ObservableWrapper.callEmit(this.event, msg);
+    this.event.add(msg);
   }
 }
 

@@ -1,18 +1,15 @@
-import "package:angular2/src/facade/collection.dart" show ListWrapper;
-import "package:angular2/src/facade/lang.dart" show isPresent, isBlank;
-
 import "../compile_metadata.dart" show CompileQueryMetadata, CompileTokenMap;
 import "../identifiers.dart" show Identifiers;
 import "../output/output_ast.dart" as o;
 import "compile_element.dart" show CompileElement;
 import "compile_method.dart" show CompileMethod;
 import "compile_view.dart" show CompileView;
-import "util.dart" show getPropertyInView;
+import "view_compiler_utils.dart" show getPropertyInView;
 
 class ViewQueryValues {
   CompileView view;
   List<dynamic /* o . Expression | ViewQueryValues */ > values;
-  ViewQueryValues(this.view, this.values) {}
+  ViewQueryValues(this.view, this.values);
 }
 
 class CompileQuery {
@@ -25,10 +22,10 @@ class CompileQuery {
       this.meta, this.queryList, this.ownerDirectiveExpression, this.view) {
     this._values = new ViewQueryValues(view, []);
   }
-  addValue(o.Expression value, CompileView view) {
+  void addValue(o.Expression value, CompileView view) {
     var currentView = view;
     List<CompileElement> elPath = [];
-    while (isPresent(currentView) && !identical(currentView, this.view)) {
+    while (currentView != null && !identical(currentView, this.view)) {
       var parentEl = currentView.declarationElement;
       (elPath..insert(0, parentEl)).length;
       currentView = parentEl.view;
@@ -66,13 +63,13 @@ class CompileQuery {
     return isStatic;
   }
 
-  afterChildren(
+  void afterChildren(
       CompileMethod targetStaticMethod, CompileMethod targetDynamicMethod) {
     var values = createQueryValues(this._values);
     var updateStmts = [
       this.queryList.callMethod("reset", [o.literalArr(values)]).toStmt()
     ];
-    if (isPresent(this.ownerDirectiveExpression)) {
+    if (this.ownerDirectiveExpression != null) {
       var valueExpr =
           this.meta.first ? this.queryList.prop("first") : this.queryList;
       updateStmts.add(this
@@ -102,21 +99,20 @@ class CompileQuery {
 }
 
 List<o.Expression> createQueryValues(ViewQueryValues viewValues) {
-  return ListWrapper.flatten(viewValues.values.map((entry) {
+  return viewValues.values.map/*<o.Expression>*/((entry) {
     if (entry is ViewQueryValues) {
       return mapNestedViews(entry.view.declarationElement.appElement,
           entry.view, createQueryValues(entry));
     } else {
       return (entry as o.Expression);
     }
-  }).toList()) as List<o.Expression>;
+  }).toList();
 }
 
 o.Expression mapNestedViews(o.Expression declarationAppElement,
     CompileView view, List<o.Expression> expressions) {
   List<o.Expression> adjustedExpressions = expressions.map((expr) {
-    return o.replaceVarInExpression(
-        o.THIS_EXPR.name, o.variable("nestedView"), expr);
+    return o.replaceReadClassMemberInExpression(o.variable("nestedView"), expr);
   }).toList();
   return declarationAppElement.callMethod("mapNestedViews", [
     o.variable(view.className),
@@ -131,20 +127,20 @@ o.Expression createQueryList(
     String propertyName,
     CompileView compileView) {
   compileView.fields.add(new o.ClassField(propertyName,
-      o.importType(Identifiers.QueryList), [o.StmtModifier.Private]));
-  var expr = o.THIS_EXPR.prop(propertyName);
-  compileView.createMethod.addStmt(o.THIS_EXPR
-      .prop(propertyName)
-      .set(o.importExpr(Identifiers.QueryList).instantiate([]))
+      outputType: o.importType(Identifiers.QueryList),
+      modifiers: [o.StmtModifier.Private]));
+  var expr = new o.ReadClassMemberExpr(propertyName);
+  compileView.createMethod.addStmt(new o.WriteClassMemberExpr(
+          propertyName, o.importExpr(Identifiers.QueryList).instantiate([]))
       .toStmt());
   return expr;
 }
 
-addQueryToTokenMap(
+void addQueryToTokenMap(
     CompileTokenMap<List<CompileQuery>> map, CompileQuery query) {
   query.meta.selectors.forEach((selector) {
     var entry = map.get(selector);
-    if (isBlank(entry)) {
+    if (entry == null) {
       entry = [];
       map.add(selector, entry);
     }

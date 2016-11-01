@@ -1,5 +1,3 @@
-import "package:angular2/src/facade/collection.dart" show StringMapWrapper;
-
 import "event_manager.dart" show EventManagerPlugin;
 
 var _eventNames = {
@@ -29,11 +27,9 @@ var _eventNames = {
 };
 
 class HammerGesturesPluginCommon extends EventManagerPlugin {
-  HammerGesturesPluginCommon() : super() {
-    /* super call moved to initializer */;
-  }
+  HammerGesturesPluginCommon();
   bool supports(String eventName) {
     eventName = eventName.toLowerCase();
-    return StringMapWrapper.contains(_eventNames, eventName);
+    return _eventNames.containsKey(eventName);
   }
 }

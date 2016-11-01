@@ -9,7 +9,7 @@ import './hammer_common.dart';
 const OpaqueToken HAMMER_GESTURE_CONFIG =
     const OpaqueToken("HammerGestureConfig");
 
-overrideDefault(js.JsObject mc, String eventName, Object config) {
+void overrideDefault(js.JsObject mc, String eventName, Object config) {
   var jsObj = mc.callMethod('get', [eventName]);
   jsObj.callMethod('set', [new js.JsObject.jsify(config)]);
 }
@@ -19,7 +19,7 @@ class HammerGestureConfig {
   List<String> events = [];
   Map overrides = {};
 
-  buildHammer(Element element) {
+  js.JsObject buildHammer(Element element) {
     var mc = new js.JsObject(js.context['Hammer'], [element]);
     overrideDefault(mc, 'pinch', {'enable': true});
     overrideDefault(mc, 'rotate', {'enable': true});
@@ -31,9 +31,9 @@ class HammerGestureConfig {
 
 @Injectable()
 class HammerGesturesPlugin extends HammerGesturesPluginCommon {
-  HammerGestureConfig _config;
+  final HammerGestureConfig _config;
 
-  HammerGesturesPlugin(@Inject(HAMMER_GESTURE_CONFIG) this._config) {}
+  HammerGesturesPlugin(@Inject(HAMMER_GESTURE_CONFIG) this._config);
 
   bool supports(String eventName) {
     if (!super.supports(eventName) && !this.isCustomEvent(eventName))
@@ -68,7 +68,7 @@ class HammerGesturesPlugin extends HammerGesturesPluginCommon {
     });
   }
 
-  isCustomEvent(String eventName) {
+  bool isCustomEvent(String eventName) {
     return this._config.events.indexOf(eventName) > -1;
   }
 }
@@ -81,7 +81,7 @@ class HammerEvent {
   int deltaX;
   int deltaY;
   int direction;
-  int distance;
+  num distance;
   num rotation;
   num scale;
   Node target;

@@ -3,9 +3,9 @@ import 'package:angular2/src/core/metadata/lifecycle_hooks.dart'
 
 import '../compile_metadata.dart'
     show CompileDirectiveMetadata, CompilePipeMetadata;
+import '../identifiers.dart';
 import '../output/output_ast.dart' as o;
 import '../template_ast.dart' show DirectiveAst;
-import '../identifiers.dart';
 import 'compile_element.dart' show CompileElement;
 import 'compile_view.dart' show CompileView;
 import 'constants.dart' show DetectChangesVars, ChangeDetectorStateEnum;
@@ -15,7 +15,7 @@ var STATE_IS_NEVER_CHECKED =
 
 var NOT_THROW_ON_CHANGES = o.not(o.importExpr(Identifiers.throwOnChanges));
 
-bindDirectiveDetectChangesLifecycleCallbacks(DirectiveAst directiveAst,
+void bindDirectiveDetectChangesLifecycleCallbacks(DirectiveAst directiveAst,
     o.Expression directiveInstance, CompileElement compileElement) {
   var view = compileElement.view;
   var detectChangesInInputsMethod = view.detectChangesInInputsMethod;
@@ -28,18 +28,18 @@ bindDirectiveDetectChangesLifecycleCallbacks(DirectiveAst directiveAst,
           .callMethod('ngOnChanges', [DetectChangesVars.changes]).toStmt()
     ]));
   }
-  if (!identical(lifecycleHooks.indexOf(LifecycleHooks.OnInit), -1)) {
+  if (lifecycleHooks.contains(LifecycleHooks.OnInit)) {
     detectChangesInInputsMethod.addStmt(new o.IfStmt(
         STATE_IS_NEVER_CHECKED.and(NOT_THROW_ON_CHANGES),
         [directiveInstance.callMethod('ngOnInit', []).toStmt()]));
   }
-  if (!identical(lifecycleHooks.indexOf(LifecycleHooks.DoCheck), -1)) {
+  if (lifecycleHooks.contains(LifecycleHooks.DoCheck)) {
     detectChangesInInputsMethod.addStmt(new o.IfStmt(NOT_THROW_ON_CHANGES,
         [directiveInstance.callMethod('ngDoCheck', []).toStmt()]));
   }
 }
 
-bindDirectiveAfterContentLifecycleCallbacks(
+void bindDirectiveAfterContentLifecycleCallbacks(
     CompileDirectiveMetadata directiveMeta,
     o.Expression directiveInstance,
     CompileElement compileElement) {
@@ -61,8 +61,10 @@ bindDirectiveAfterContentLifecycleCallbacks(
   }
 }
 
-bindDirectiveAfterViewLifecycleCallbacks(CompileDirectiveMetadata directiveMeta,
-    o.Expression directiveInstance, CompileElement compileElement) {
+void bindDirectiveAfterViewLifecycleCallbacks(
+    CompileDirectiveMetadata directiveMeta,
+    o.Expression directiveInstance,
+    CompileElement compileElement) {
   var view = compileElement.view;
   var lifecycleHooks = directiveMeta.lifecycleHooks;
   var afterViewLifecycleCallbacksMethod =
@@ -80,8 +82,10 @@ bindDirectiveAfterViewLifecycleCallbacks(CompileDirectiveMetadata directiveMeta,
   }
 }
 
-bindDirectiveDestroyLifecycleCallbacks(CompileDirectiveMetadata directiveMeta,
-    o.Expression directiveInstance, CompileElement compileElement) {
+void bindDirectiveDestroyLifecycleCallbacks(
+    CompileDirectiveMetadata directiveMeta,
+    o.Expression directiveInstance,
+    CompileElement compileElement) {
   var onDestroyMethod = compileElement.view.destroyMethod;
   onDestroyMethod.resetDebugInfo(
       compileElement.nodeIndex, compileElement.sourceAst);
@@ -92,7 +96,7 @@ bindDirectiveDestroyLifecycleCallbacks(CompileDirectiveMetadata directiveMeta,
   }
 }
 
-bindPipeDestroyLifecycleCallbacks(
+void bindPipeDestroyLifecycleCallbacks(
     CompilePipeMetadata pipeMeta, o.Expression pipeInstance, CompileView view) {
   var onDestroyMethod = view.destroyMethod;
   if (!identical(

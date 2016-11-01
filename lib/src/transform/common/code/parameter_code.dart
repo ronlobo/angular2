@@ -1,5 +1,5 @@
 import 'package:analyzer/analyzer.dart';
-import 'package:analyzer/src/generated/ast.dart';
+import 'package:analyzer/dart/ast/ast.dart';
 import 'package:angular2/src/transform/common/logging.dart';
 import 'package:angular2/src/transform/common/model/parameter_model.pb.dart';
 
@@ -99,7 +99,7 @@ abstract class ParameterWriterMixin {
   StringBuffer get buffer;
 
   void writeParameterModelForList(ParameterModel model) {
-    buffer.write('const [');
+    buffer.write('const <dynamic>[');
     var first = true;
     if (model.typeName != null && model.typeName.isNotEmpty) {
       if (!first) {

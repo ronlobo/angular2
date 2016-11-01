@@ -1,22 +1,9 @@
-import "dart:async";
+import 'dart:async';
+import 'dart:math' as math;
 
 import "package:angular2/core.dart"
     show Injectable, Inject, OpaqueToken, ComponentFactory;
-import "package:angular2/src/facade/async.dart" show PromiseWrapper;
-import "package:angular2/src/facade/collection.dart"
-    show ListWrapper, Map, StringMapWrapper;
 import "package:angular2/src/facade/exceptions.dart" show BaseException;
-import "package:angular2/src/facade/lang.dart"
-    show
-        isPresent,
-        isArray,
-        isBlank,
-        isType,
-        isString,
-        isStringMap,
-        StringWrapper,
-        Math,
-        getTypeNameForDebugging;
 
 import "instruction.dart"
     show
@@ -35,7 +22,7 @@ import "rules/rules.dart" show PathMatch, RedirectMatch, RouteMatch;
 import "url_parser.dart" show parser, Url, convertUrlParamsToArray;
 import "utils.dart" show getComponentAnnotations, getComponentType;
 
-var _resolveToNull = PromiseWrapper.resolve/*< Instruction >*/(null);
+var _resolveToNull = new Future.value();
 // A LinkItemArray is an array, which describes a set of routes
 
 // The items in the array are found in groups:
@@ -54,47 +41,42 @@ var _resolveToNull = PromiseWrapper.resolve/*< Instruction >*/(null);
 
 // export type LinkItemArray = Array<LinkItem>;
 
-/**
- * Token used to bind the component with the top-level [RouteConfig]s for the
- * application.
- *
- * ### Example ([live demo](http://plnkr.co/edit/iRUP8B5OUbxCWQ3AcIDm))
- *
- * ```
- * import {Component} from 'angular2/core';
- * import {
- *   ROUTER_DIRECTIVES,
- *   ROUTER_PROVIDERS,
- *   RouteConfig
- * } from 'angular2/router';
- *
- * @Component({directives: [ROUTER_DIRECTIVES]})
- * @RouteConfig([
- *  {...},
- * ])
- * class AppCmp {
- *   // ...
- * }
- *
- * bootstrap(AppCmp, [ROUTER_PROVIDERS]);
- * ```
- */
+/// Token used to bind the component with the top-level [RouteConfig]s for the
+/// application.
+///
+/// ### Example ([live demo](http://plnkr.co/edit/iRUP8B5OUbxCWQ3AcIDm))
+///
+/// ```
+/// import {Component} from 'angular2/core';
+/// import {
+///   ROUTER_DIRECTIVES,
+///   ROUTER_PROVIDERS,
+///   RouteConfig
+/// } from 'angular2/router';
+///
+/// @Component({directives: [ROUTER_DIRECTIVES]})
+/// @RouteConfig([
+///  {...},
+/// ])
+/// class AppCmp {
+///   // ...
+/// }
+///
+/// bootstrap(AppCmp, [ROUTER_PROVIDERS]);
+/// ```
 const OpaqueToken ROUTER_PRIMARY_COMPONENT =
     const OpaqueToken("RouterPrimaryComponent");
 
-/**
- * The RouteRegistry holds route configurations for each component in an Angular app.
- * It is responsible for creating Instructions from URLs, and generating URLs based on route and
- * parameters.
- */
+/// The RouteRegistry holds route configurations for each component in an Angular app.
+/// It is responsible for creating Instructions from URLs, and generating URLs based on route and
+/// parameters.
 @Injectable()
 class RouteRegistry {
   dynamic /* Type | ComponentFactory */ _rootComponent;
   var _rules = new Map<dynamic, RuleSet>();
-  RouteRegistry(@Inject(ROUTER_PRIMARY_COMPONENT) this._rootComponent) {}
-  /**
-   * Given a component and a configuration object, add the route to this registry
-   */
+  RouteRegistry(@Inject(ROUTER_PRIMARY_COMPONENT) this._rootComponent);
+
+  /// Given a component and a configuration object, add the route to this registry
   void config(dynamic parentComponent, RouteDefinition config) {
     config = normalizeRouteConfig(config, this);
     // this is here because Dart type guard reasons
@@ -104,7 +86,7 @@ class RouteRegistry {
       assertComponentExists(config.component, config.path);
     }
     var rules = this._rules[parentComponent];
-    if (isBlank(rules)) {
+    if (rules == null) {
       rules = new RuleSet();
       this._rules[parentComponent] = rules;
     }
@@ -118,11 +100,9 @@ class RouteRegistry {
     }
   }
 
-  /**
-   * Reads the annotations of a component and configures the registry based on them
-   */
+  /// Reads the annotations of a component and configures the registry based on them
   void configFromComponent(dynamic component) {
-    if (!isType(component) && !(component is ComponentFactory)) {
+    if (component is! Type && !(component is ComponentFactory)) {
       return;
     }
     // Don't read the annotations from a type more than once –
@@ -132,7 +112,7 @@ class RouteRegistry {
       return;
     }
     var annotations = getComponentAnnotations(component);
-    if (isPresent(annotations)) {
+    if (annotations != null) {
       for (var i = 0; i < annotations.length; i++) {
         var annotation = annotations[i];
         if (annotation is RouteConfig) {
@@ -143,65 +123,63 @@ class RouteRegistry {
     }
   }
 
-  /**
-   * Given a URL and a parent component, return the most specific instruction for navigating
-   * the application into the state specified by the url
-   */
+  /// Given a URL and a parent component, return the most specific instruction for navigating
+  /// the application into the state specified by the url
   Future<Instruction> recognize(
       String url, List<Instruction> ancestorInstructions) {
     var parsedUrl = parser.parse(url);
     return this._recognize(parsedUrl, []);
   }
 
-  /**
-   * Recognizes all parent-child routes, but creates unresolved auxiliary routes
-   */
+  /// Recognizes all parent-child routes, but creates unresolved auxiliary routes
   Future<Instruction> _recognize(
       Url parsedUrl, List<Instruction> ancestorInstructions,
       [_aux = false]) {
-    var parentInstruction = ListWrapper.last(ancestorInstructions);
-    var parentComponent = isPresent(parentInstruction)
+    var parentInstruction =
+        ancestorInstructions.isNotEmpty ? ancestorInstructions.last : null;
+    var parentComponent = parentInstruction != null
         ? parentInstruction.component.componentType
         : this._rootComponent;
     var rules = this._rules[parentComponent];
-    if (isBlank(rules)) {
-      return _resolveToNull;
+    if (rules == null) {
+      return new Future<Instruction>.value();
     }
     // Matches some beginning part of the given URL
     List<Future<RouteMatch>> possibleMatches =
         _aux ? rules.recognizeAuxiliary(parsedUrl) : rules.recognize(parsedUrl);
     List<Future<Instruction>> matchPromises = possibleMatches
         .map((Future<RouteMatch> candidate) =>
-            candidate.then((RouteMatch candidate) {
+            candidate.then((RouteMatch candidate) async {
               if (candidate is PathMatch) {
                 List<Instruction> auxParentInstructions =
                     ancestorInstructions.length > 0
-                        ? [ListWrapper.last(ancestorInstructions)]
+                        ? [
+                            ancestorInstructions.isNotEmpty
+                                ? ancestorInstructions.last
+                                : null
+                          ]
                         : [];
                 var auxInstructions = this._auxRoutesToUnresolved(
                     candidate.remainingAux, auxParentInstructions);
                 var instruction = new ResolvedInstruction(
                     candidate.instruction, null, auxInstructions);
-                if (isBlank(candidate.instruction) ||
-                    candidate.instruction.terminal) {
+                if (candidate.instruction?.terminal != false) {
                   return instruction;
                 }
                 List<Instruction> newAncestorInstructions =
                     (new List.from(ancestorInstructions)
                       ..addAll([instruction]));
-                return this
-                    ._recognize(candidate.remaining, newAncestorInstructions)
-                    .then((childInstruction) {
-                  if (isBlank(childInstruction)) {
-                    return null;
-                  }
-                  // redirect instructions are already absolute
-                  if (childInstruction is RedirectInstruction) {
-                    return childInstruction;
-                  }
-                  instruction.child = childInstruction;
-                  return instruction;
-                });
+                var childInstruction = await this
+                    ._recognize(candidate.remaining, newAncestorInstructions);
+                if (childInstruction == null) {
+                  return null;
+                }
+                // redirect instructions are already absolute
+                if (childInstruction is RedirectInstruction) {
+                  return childInstruction;
+                }
+                instruction.child = childInstruction;
+                return instruction;
               }
               if (candidate is RedirectMatch) {
                 var instruction = this.generate(candidate.redirectTo,
@@ -212,15 +190,14 @@ class RouteRegistry {
                     instruction.auxInstruction,
                     candidate.specificity);
               }
+              return null;
             }))
         .toList();
-    if ((isBlank(parsedUrl) || parsedUrl.path == "") &&
+    if ((parsedUrl == null || parsedUrl.path == "") &&
         possibleMatches.length == 0) {
-      return PromiseWrapper.resolve(this.generateDefault(parentComponent));
+      return new Future.value(this.generateDefault(parentComponent));
     }
-    return PromiseWrapper
-        .all/*< Instruction >*/(matchPromises)
-        .then(mostSpecific);
+    return Future.wait/*< Instruction >*/(matchPromises).then(mostSpecific);
   }
 
   Map<String, Instruction> _auxRoutesToUnresolved(
@@ -234,45 +211,42 @@ class RouteRegistry {
     return unresolvedAuxInstructions;
   }
 
-  /**
-   * Given a normalized list with component names and params like: `['user', {id: 3 }]`
-   * generates a url with a leading slash relative to the provided `parentComponent`.
-   *
-   * If the optional param `_aux` is `true`, then we generate starting at an auxiliary
-   * route boundary.
-   */
+  /// Given a normalized list with component names and params like: `['user', {id: 3 }]`
+  /// generates a url with a leading slash relative to the provided `parentComponent`.
+  ///
+  /// If the optional param `_aux` is `true`, then we generate starting at an auxiliary
+  /// route boundary.
   Instruction generate(
       List<dynamic> linkParams, List<Instruction> ancestorInstructions,
       [_aux = false]) {
     var params = splitAndFlattenLinkParams(linkParams);
     var prevInstruction;
     // The first segment should be either '.' (generate from parent) or '' (generate from root).
-
     // When we normalize above, we strip all the slashes, './' becomes '.' and '/' becomes ''.
-    if (ListWrapper.first(params) == "") {
+    if (params.first == "") {
       params.removeAt(0);
-      prevInstruction = ListWrapper.first(ancestorInstructions);
+      prevInstruction = ancestorInstructions.first;
       ancestorInstructions = [];
     } else {
       prevInstruction = ancestorInstructions.length > 0
           ? ancestorInstructions.removeLast()
           : null;
-      if (ListWrapper.first(params) == ".") {
+      if (params.first == ".") {
         params.removeAt(0);
-      } else if (ListWrapper.first(params) == "..") {
-        while (ListWrapper.first(params) == "..") {
+      } else if (params.first == "..") {
+        while (params.first == "..") {
           if (ancestorInstructions.length <= 0) {
             throw new BaseException(
-                '''Link "${ ListWrapper . toJSON ( linkParams )}" has too many "../" segments.''');
+                '''Link "$linkParams" has too many "../" segments.''');
           }
           prevInstruction = ancestorInstructions.removeLast();
-          params = ListWrapper.slice(params, 1);
+          params = params.sublist(1);
         }
       } else {
         // we must only peak at the link param, and not consume it
-        var routeName = ListWrapper.first(params);
+        var routeName = params.first;
         var parentComponentType = this._rootComponent;
-        var grandparentComponentType = null;
+        var grandparentComponentType;
         if (ancestorInstructions.length > 1) {
           var parentComponentInstruction =
               ancestorInstructions[ancestorInstructions.length - 1];
@@ -290,11 +264,11 @@ class RouteRegistry {
 
         // If both exist, we throw. Otherwise, we prefer whichever exists.
         var childRouteExists = this.hasRoute(routeName, parentComponentType);
-        var parentRouteExists = isPresent(grandparentComponentType) &&
+        var parentRouteExists = grandparentComponentType != null &&
             this.hasRoute(routeName, grandparentComponentType);
         if (parentRouteExists && childRouteExists) {
           var msg =
-              '''Link "${ ListWrapper . toJSON ( linkParams )}" is ambiguous, use "./" or "../" to disambiguate.''';
+              '''Link "$linkParams" is ambiguous, use "./" or "../" to disambiguate.''';
           throw new BaseException(msg);
         }
         if (parentRouteExists) {
@@ -309,8 +283,7 @@ class RouteRegistry {
       params.removeAt(0);
     }
     if (params.length < 1) {
-      var msg =
-          '''Link "${ ListWrapper . toJSON ( linkParams )}" must include a route name.''';
+      var msg = '''Link "$linkParams" must include a route name.''';
       throw new BaseException(msg);
     }
     var generatedInstruction = this._generate(
@@ -318,7 +291,7 @@ class RouteRegistry {
     // we don't clone the first (root) element
     for (var i = ancestorInstructions.length - 1; i >= 0; i--) {
       var ancestorInstruction = ancestorInstructions[i];
-      if (isBlank(ancestorInstruction)) {
+      if (ancestorInstruction == null) {
         break;
       }
       generatedInstruction =
@@ -337,39 +310,40 @@ class RouteRegistry {
       List<Instruction> ancestorInstructions, Instruction prevInstruction,
       [_aux = false, List<dynamic> _originalLink]) {
     var parentComponentType = this._rootComponent;
-    var componentInstruction = null;
+    var componentInstruction;
     Map<String, Instruction> auxInstructions = {};
-    Instruction parentInstruction = ListWrapper.last(ancestorInstructions);
-    if (isPresent(parentInstruction) &&
-        isPresent(parentInstruction.component)) {
+    Instruction parentInstruction =
+        ancestorInstructions.isNotEmpty ? ancestorInstructions.last : null;
+    if (parentInstruction?.component != null) {
       parentComponentType = parentInstruction.component.componentType;
     }
     if (linkParams.length == 0) {
       var defaultInstruction = this.generateDefault(parentComponentType);
-      if (isBlank(defaultInstruction)) {
+      if (defaultInstruction == null) {
         throw new BaseException(
-            '''Link "${ ListWrapper . toJSON ( _originalLink )}" does not resolve to a terminal instruction.''');
+            '''Link "$_originalLink" does not resolve to a terminal instruction.''');
       }
       return defaultInstruction;
     }
     // for non-aux routes, we want to reuse the predecessor's existing primary and aux routes
 
     // and only override routes for which the given link DSL provides
-    if (isPresent(prevInstruction) && !_aux) {
-      auxInstructions = StringMapWrapper.merge(
-          prevInstruction.auxInstruction, auxInstructions);
+    if (prevInstruction != null && !_aux) {
+      auxInstructions =
+          new Map<String, Instruction>.from(prevInstruction.auxInstruction)
+            ..addAll(auxInstructions);
       componentInstruction = prevInstruction.component;
     }
     var rules = this._rules[parentComponentType];
-    if (isBlank(rules)) {
+    if (rules == null) {
       throw new BaseException(
-          '''Component "${ getTypeNameForDebugging ( getComponentType ( parentComponentType ) )}" has no route config.''');
+          '''Component "${getComponentType(parentComponentType)}" has no route config.''');
     }
     var linkParamIndex = 0;
     Map<String, dynamic> routeParams = {};
     // first, recognize the primary route if one is provided
     if (linkParamIndex < linkParams.length &&
-        isString(linkParams[linkParamIndex])) {
+        linkParams[linkParamIndex] is String) {
       var routeName = linkParams[linkParamIndex];
       if (routeName == "" || routeName == "." || routeName == "..") {
         throw new BaseException(
@@ -378,23 +352,23 @@ class RouteRegistry {
       linkParamIndex += 1;
       if (linkParamIndex < linkParams.length) {
         var linkParam = linkParams[linkParamIndex];
-        if (isStringMap(linkParam) && !isArray(linkParam)) {
+        if (linkParam is Map) {
           routeParams = linkParam as Map<String, dynamic>;
           linkParamIndex += 1;
         }
       }
       var routeRecognizer =
           (_aux ? rules.auxRulesByName : rules.rulesByName)[routeName];
-      if (isBlank(routeRecognizer)) {
+      if (routeRecognizer == null) {
         throw new BaseException(
-            '''Component "${ getTypeNameForDebugging ( getComponentType ( parentComponentType ) )}" has no route named "${ routeName}".''');
+            '''Component "${getComponentType(parentComponentType)}" has no route named "${ routeName}".''');
       }
       // Create an "unresolved instruction" for async routes
 
       // we'll figure out the rest of the route when we resolve the instruction and
 
       // perform a navigation
-      if (isBlank(routeRecognizer.handler.componentType)) {
+      if (routeRecognizer.handler.componentType == null) {
         GeneratedUrl generatedUrl =
             routeRecognizer.generateComponentPathValues(routeParams);
         return new UnresolvedInstruction(() {
@@ -413,7 +387,7 @@ class RouteRegistry {
 
     // If we have an ancestor instruction, we preserve whatever aux routes are active from it.
     while (linkParamIndex < linkParams.length &&
-        isArray(linkParams[linkParamIndex])) {
+        linkParams[linkParamIndex] is List) {
       List<Instruction> auxParentInstruction = [parentInstruction];
       var auxInstruction = this._generate(linkParams[linkParamIndex],
           auxParentInstruction, null, true, _originalLink);
@@ -426,15 +400,14 @@ class RouteRegistry {
     // If the component is sync, we can generate resolved child route instructions
 
     // If not, we'll resolve the instructions at navigation time
-    if (isPresent(componentInstruction) &&
-        isPresent(componentInstruction.componentType)) {
-      Instruction childInstruction = null;
+    if (componentInstruction?.componentType != null) {
+      Instruction childInstruction;
       if (componentInstruction.terminal) {
         if (linkParamIndex >= linkParams.length) {}
       } else {
         List<Instruction> childAncestorComponents =
             (new List.from(ancestorInstructions)..addAll([instruction]));
-        var remainingLinkParams = ListWrapper.slice(linkParams, linkParamIndex);
+        var remainingLinkParams = linkParams.sublist(linkParamIndex);
         childInstruction = this._generate(remainingLinkParams,
             childAncestorComponents, null, false, _originalLink);
       }
@@ -445,7 +418,7 @@ class RouteRegistry {
 
   bool hasRoute(String name, dynamic parentComponent) {
     var rules = this._rules[parentComponent];
-    if (isBlank(rules)) {
+    if (rules == null) {
       return false;
     }
     return rules.hasRoute(name);
@@ -453,15 +426,15 @@ class RouteRegistry {
 
   Instruction generateDefault(
       dynamic /* Type | ComponentFactory */ componentCursor) {
-    if (isBlank(componentCursor)) {
+    if (componentCursor == null) {
       return null;
     }
     var rules = this._rules[componentCursor];
-    if (isBlank(rules) || isBlank(rules.defaultRule)) {
+    if (rules?.defaultRule == null) {
       return null;
     }
-    var defaultChild = null;
-    if (isPresent(rules.defaultRule.handler.componentType)) {
+    var defaultChild;
+    if (rules.defaultRule.handler.componentType != null) {
       var componentInstruction = rules.defaultRule.generate({});
       if (!rules.defaultRule.terminal) {
         defaultChild =
@@ -484,9 +457,8 @@ class RouteRegistry {
 List<dynamic> splitAndFlattenLinkParams(List<dynamic> linkParams) {
   var accumulation = [];
   linkParams.forEach((dynamic item) {
-    if (isString(item)) {
-      String strItem = (item as String);
-      accumulation = (new List.from(accumulation)..addAll(strItem.split("/")));
+    if (item is String) {
+      accumulation = (new List.from(accumulation)..addAll(item.split("/")));
     } else {
       accumulation.add(item);
     }
@@ -499,7 +471,7 @@ List<dynamic> splitAndFlattenLinkParams(List<dynamic> linkParams) {
  */
 Instruction mostSpecific(List<Instruction> instructions) {
   instructions =
-      instructions.where((instruction) => isPresent(instruction)).toList();
+      instructions.where((instruction) => instruction != null).toList();
   if (instructions.length == 0) {
     return null;
   }
@@ -507,7 +479,7 @@ Instruction mostSpecific(List<Instruction> instructions) {
     return instructions[0];
   }
   var first = instructions[0];
-  var rest = ListWrapper.slice(instructions, 1);
+  var rest = instructions.sublist(1);
   return rest.fold(first, (Instruction instruction, Instruction contender) {
     if (compareSpecificityStrings(
             contender.specificity, instruction.specificity) ==
@@ -524,10 +496,10 @@ Instruction mostSpecific(List<Instruction> instructions) {
  * or 0 if they are the same.
  */
 num compareSpecificityStrings(String a, String b) {
-  var l = Math.min(a.length, b.length);
+  var l = math.min(a.length, b.length);
   for (var i = 0; i < l; i += 1) {
-    var ai = StringWrapper.charCodeAt(a, i);
-    var bi = StringWrapper.charCodeAt(b, i);
+    var ai = a.codeUnitAt(i);
+    var bi = b.codeUnitAt(i);
     var difference = bi - ai;
     if (difference != 0) {
       return difference;
@@ -536,12 +508,12 @@ num compareSpecificityStrings(String a, String b) {
   return a.length - b.length;
 }
 
-assertTerminalComponent(component, path) {
-  if (!isType(component) && !(component is ComponentFactory)) {
+void assertTerminalComponent(component, path) {
+  if (component is! Type && !(component is ComponentFactory)) {
     return;
   }
   var annotations = getComponentAnnotations(component);
-  if (isPresent(annotations)) {
+  if (annotations != null) {
     for (var i = 0; i < annotations.length; i++) {
       var annotation = annotations[i];
       if (annotation is RouteConfig) {

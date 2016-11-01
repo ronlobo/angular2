@@ -1,16 +1,13 @@
 import "package:angular2/src/core/di/decorators.dart" show Injectable;
-import "package:angular2/src/facade/collection.dart" show SetWrapper;
 import "package:angular2/src/facade/exceptions.dart" show BaseException;
-import "package:angular2/src/facade/lang.dart"
-    show NumberWrapper, StringJoiner, StringWrapper, isPresent;
 
 enum TokenType { Character, Identifier, Keyword, String, Operator, Number }
 
 @Injectable()
 class Lexer {
-  List<dynamic> tokenize(String text) {
+  List<Token> tokenize(String text) {
     var scanner = new _Scanner(text);
-    var tokens = [];
+    var tokens = <Token>[];
     var token = scanner.scanToken();
     while (token != null) {
       tokens.add(token);
@@ -25,7 +22,7 @@ class Token {
   TokenType type;
   num numValue;
   String strValue;
-  Token(this.index, this.type, this.numValue, this.strValue) {}
+  Token(this.index, this.type, this.numValue, this.strValue);
   bool isCharacter(num code) {
     return (this.type == TokenType.Character && this.numValue == code);
   }
@@ -38,8 +35,8 @@ class Token {
     return (this.type == TokenType.String);
   }
 
-  bool isOperator(String operater) {
-    return (this.type == TokenType.Operator && this.strValue == operater);
+  bool isOperator(String operator) {
+    return (this.type == TokenType.Operator && this.strValue == operator);
   }
 
   bool isIdentifier() {
@@ -97,7 +94,7 @@ class Token {
 
 Token newCharacterToken(num index, num code) {
   return new Token(
-      index, TokenType.Character, code, StringWrapper.fromCharCode(code));
+      index, TokenType.Character, code, new String.fromCharCode(code));
 }
 
 Token newIdentifierToken(num index, String text) {
@@ -173,10 +170,8 @@ const $RBRACE = 125;
 const $NBSP = 160;
 
 class ScannerError extends BaseException {
-  var message;
-  ScannerError(this.message) : super() {
-    /* super call moved to initializer */;
-  }
+  final String message;
+  ScannerError(this.message);
   String toString() {
     return this.message;
   }
@@ -191,10 +186,9 @@ class _Scanner {
     this.length = input.length;
     this.advance();
   }
-  advance() {
-    this.peek = ++this.index >= this.length
-        ? $EOF
-        : StringWrapper.charCodeAt(this.input, this.index);
+  void advance() {
+    this.peek =
+        ++this.index >= this.length ? $EOF : this.input.codeUnitAt(this.index);
   }
 
   Token scanToken() {
@@ -208,7 +202,7 @@ class _Scanner {
         peek = $EOF;
         break;
       } else {
-        peek = StringWrapper.charCodeAt(input, index);
+        peek = input.codeUnitAt(index);
       }
     }
     this.peek = peek;
@@ -246,17 +240,18 @@ class _Scanner {
       case $SLASH:
       case $PERCENT:
       case $CARET:
-        return this.scanOperator(start, StringWrapper.fromCharCode(peek));
+        return this.scanOperator(start, new String.fromCharCode(peek));
       case $QUESTION:
-        return this.scanComplexOperator(start, "?", $PERIOD, ".");
+        return this
+            .scanComplexOperator(start, "?", $PERIOD, ".", $QUESTION, "?");
       case $LT:
       case $GT:
         return this.scanComplexOperator(
-            start, StringWrapper.fromCharCode(peek), $EQ, "=");
+            start, new String.fromCharCode(peek), $EQ, "=");
       case $BANG:
       case $EQ:
         return this.scanComplexOperator(
-            start, StringWrapper.fromCharCode(peek), $EQ, "=", $EQ, "=");
+            start, new String.fromCharCode(peek), $EQ, "=", $EQ, "=");
       case $AMPERSAND:
         return this.scanComplexOperator(start, "&", $AMPERSAND, "&");
       case $BAR:
@@ -266,8 +261,7 @@ class _Scanner {
         return this.scanToken();
     }
     this.error(
-        '''Unexpected character [${ StringWrapper . fromCharCode ( peek )}]''',
-        0);
+        '''Unexpected character [${ new String . fromCharCode ( peek )}]''', 0);
     return null;
   }
 
@@ -281,17 +275,7 @@ class _Scanner {
     return newOperatorToken(start, str);
   }
 
-  /**
-   * Tokenize a 2/3 char long operator
-   *
-   * 
-   * 
-   * 
-   * 
-   * 
-   * 
-   * 
-   */
+  /// Tokenize a 2/3 char long operator
   Token scanComplexOperator(num start, String one, num twoCode, String two,
       [num threeCode, String three]) {
     this.advance();
@@ -300,7 +284,7 @@ class _Scanner {
       this.advance();
       str += two;
     }
-    if (isPresent(threeCode) && this.peek == threeCode) {
+    if (threeCode != null && this.peek == threeCode) {
       this.advance();
       str += three;
     }
@@ -312,7 +296,7 @@ class _Scanner {
     this.advance();
     while (isIdentifierPart(this.peek)) this.advance();
     String str = this.input.substring(start, this.index);
-    if (SetWrapper.has(KEYWORDS, str)) {
+    if (KEYWORDS.contains(str)) {
       return newKeywordToken(start, str);
     } else {
       return newIdentifierToken(start, str);
@@ -337,9 +321,7 @@ class _Scanner {
     }
     String str = this.input.substring(start, this.index);
     // TODO
-    num value = simple
-        ? NumberWrapper.parseIntAutoRadix(str)
-        : NumberWrapper.parseFloat(str);
+    num value = simple ? int.parse(str) : double.parse(str);
     return newNumberToken(start, value);
   }
 
@@ -347,12 +329,12 @@ class _Scanner {
     num start = this.index;
     num quote = this.peek;
     this.advance();
-    StringJoiner buffer;
+    List<String> buffer;
     num marker = this.index;
     String input = this.input;
     while (this.peek != quote) {
       if (this.peek == $BACKSLASH) {
-        if (buffer == null) buffer = new StringJoiner();
+        if (buffer == null) buffer = <String>[];
         buffer.add(input.substring(marker, this.index));
         this.advance();
         num unescapedCode;
@@ -360,7 +342,7 @@ class _Scanner {
           // 4 character hex code for unicode character.
           String hex = input.substring(this.index + 1, this.index + 5);
           try {
-            unescapedCode = NumberWrapper.parseInt(hex, 16);
+            unescapedCode = int.parse(hex, radix: 16);
           } catch (e) {
             this.error('''Invalid unicode escape [\\u${ hex}]''', 0);
           }
@@ -371,7 +353,7 @@ class _Scanner {
           unescapedCode = unescape(this.peek);
           this.advance();
         }
-        buffer.add(StringWrapper.fromCharCode(unescapedCode));
+        buffer.add(new String.fromCharCode(unescapedCode));
         marker = this.index;
       } else if (this.peek == $EOF) {
         this.error("Unterminated quote", 0);
@@ -385,12 +367,12 @@ class _Scanner {
     String unescaped = last;
     if (buffer != null) {
       buffer.add(last);
-      unescaped = buffer.toString();
+      unescaped = buffer.join('');
     }
     return newStringToken(start, unescaped);
   }
 
-  error(String message, num offset) {
+  void error(String message, num offset) {
     num position = this.index + offset;
     throw new ScannerError(
         '''Lexer Error: ${ message} at column ${ position} in expression [${ this . input}]''');
@@ -461,7 +443,7 @@ num unescape(num code) {
   }
 }
 
-var OPERATORS = SetWrapper.createFromList([
+var OPERATORS = new Set.from([
   "+",
   "-",
   "*",
@@ -484,7 +466,8 @@ var OPERATORS = SetWrapper.createFromList([
   "!",
   "?",
   "#",
-  "?."
+  "?.",
+  "??"
 ]);
-var KEYWORDS = SetWrapper.createFromList(
+var KEYWORDS = new Set.from(
     ["var", "let", "null", "undefined", "true", "false", "if", "else"]);

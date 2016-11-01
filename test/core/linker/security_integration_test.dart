@@ -1,11 +1,12 @@
+@TestOn('browser && !js')
 library angular2.test.core.linker.security_integration_test;
 
-import 'package:angular2/testing_internal.dart';
-import 'package:angular2/src/platform/browser/browser_adapter.dart';
-import 'package:angular2/src/security/dom_sanitization_service.dart';
-import 'package:angular2/src/platform/dom/dom_adapter.dart' show DOM;
 import 'package:angular2/core.dart' show provide, Injectable, OpaqueToken;
-import 'package:angular2/src/core/metadata.dart' show Component, ViewMetadata;
+import 'package:angular2/src/core/metadata.dart' show Component, View;
+import 'package:angular2/src/platform/browser/browser_adapter.dart';
+import 'package:angular2/src/platform/dom/dom_adapter.dart' show DOM;
+import 'package:angular2/src/security/dom_sanitization_service.dart';
+import 'package:angular2/testing_internal.dart';
 import 'package:test/test.dart';
 
 const ANCHOR_ELEMENT = const OpaqueToken('AnchorElement');
@@ -19,7 +20,7 @@ class SecuredComponent {
   }
 }
 
-main() {
+void main() {
   BrowserDomAdapter.makeCurrent();
   group('security integration tests', () {
     setUp(() {
@@ -31,8 +32,7 @@ main() {
         return inject([TestComponentBuilder, AsyncTestCompleter],
             (TestComponentBuilder tcb, AsyncTestCompleter completer) {
           var tpl = '<div [attr.onclick]="ctxProp"></div>';
-          tcb = tcb.overrideView(
-              SecuredComponent, new ViewMetadata(template: tpl));
+          tcb = tcb.overrideView(SecuredComponent, new View(template: tpl));
 
           tcb.createAsync(SecuredComponent).catchError((e) {
             expect(
@@ -48,8 +48,7 @@ main() {
         return inject([TestComponentBuilder, AsyncTestCompleter],
             (TestComponentBuilder tcb, AsyncTestCompleter completer) {
           var tpl = '<a [href]="ctxProp">Link Title</a>';
-          tcb = tcb.overrideView(
-              SecuredComponent, new ViewMetadata(template: tpl));
+          tcb = tcb.overrideView(SecuredComponent, new View(template: tpl));
           tcb.createAsync(SecuredComponent).then((fixture) {
             var e = fixture.debugElement.children[0].nativeElement;
             fixture.debugElement.componentInstance.ctxProp = 'hello';
@@ -71,8 +70,7 @@ main() {
             (DomSanitizationService sanitizer, TestComponentBuilder tcb,
                 AsyncTestCompleter completer) {
           var tpl = '<a [href]="ctxProp">Link Title</a>';
-          tcb = tcb.overrideView(
-              SecuredComponent, new ViewMetadata(template: tpl));
+          tcb = tcb.overrideView(SecuredComponent, new View(template: tpl));
           tcb.createAsync(SecuredComponent).then((fixture) {
             var e = fixture.debugElement.children[0].nativeElement;
             var trusted =
@@ -91,8 +89,7 @@ main() {
             (DomSanitizationService sanitizer, TestComponentBuilder tcb,
                 AsyncTestCompleter completer) {
           var tpl = '<a [href]="ctxProp">Link Title</a>';
-          tcb = tcb.overrideView(
-              SecuredComponent, new ViewMetadata(template: tpl));
+          tcb = tcb.overrideView(SecuredComponent, new View(template: tpl));
           tcb.createAsync(SecuredComponent).then((fixture) {
             var trusted =
                 sanitizer.bypassSecurityTrustScript('javascript:alert(1)');
@@ -107,8 +104,7 @@ main() {
         return inject([TestComponentBuilder, AsyncTestCompleter],
             (TestComponentBuilder tcb, AsyncTestCompleter completer) {
           var tpl = '<div [style.background]="ctxProp">Text</div>';
-          tcb = tcb.overrideView(
-              SecuredComponent, new ViewMetadata(template: tpl));
+          tcb = tcb.overrideView(SecuredComponent, new View(template: tpl));
           tcb.createAsync(SecuredComponent).then((fixture) {
             var e = fixture.debugElement.children[0].nativeElement;
             // Make sure binding harmless values works.
@@ -132,8 +128,7 @@ main() {
         return inject([TestComponentBuilder, AsyncTestCompleter],
             (TestComponentBuilder tcb, AsyncTestCompleter completer) {
           var tpl = '<svg:circle [xlink:href]="ctxProp">Text</svg:circle>';
-          tcb = tcb.overrideView(
-              SecuredComponent, new ViewMetadata(template: tpl));
+          tcb = tcb.overrideView(SecuredComponent, new View(template: tpl));
           tcb.createAsync(SecuredComponent).catchError((e) {
             expect(e.message, contains('Can\'t bind to \'xlink:href\''));
             completer.done();
@@ -145,8 +140,7 @@ main() {
         return inject([TestComponentBuilder, AsyncTestCompleter],
             (TestComponentBuilder tcb, AsyncTestCompleter completer) {
           var tpl = '<div [innerHTML]="ctxProp">Text</div>';
-          tcb = tcb.overrideView(
-              SecuredComponent, new ViewMetadata(template: tpl));
+          tcb = tcb.overrideView(SecuredComponent, new View(template: tpl));
           tcb.createAsync(SecuredComponent).then((fixture) {
             var e = fixture.debugElement.children[0].nativeElement;
             var componentInstance = fixture.debugElement.componentInstance;
@@ -177,8 +171,7 @@ main() {
             (TestComponentBuilder tcb, AsyncTestCompleter completer,
                 DomSanitizationService sanitizer) {
           var tpl = '<div [innerHTML]="ctxProp">Text</div>';
-          tcb = tcb.overrideView(
-              SecuredComponent, new ViewMetadata(template: tpl));
+          tcb = tcb.overrideView(SecuredComponent, new View(template: tpl));
           tcb.createAsync(SecuredComponent).then((fixture) {
             var e = fixture.debugElement.children[0].nativeElement;
             var componentInstance = fixture.debugElement.componentInstance;

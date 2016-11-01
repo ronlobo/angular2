@@ -1,6 +1,4 @@
 import "package:angular2/src/core/di.dart" show Injectable;
-import "package:angular2/src/facade/collection.dart" show ListWrapper;
-import "package:angular2/src/facade/lang.dart" show isPresent, isBlank;
 
 import "html_ast.dart"
     show
@@ -23,15 +21,13 @@ class HtmlTreeError extends ParseError {
   }
 
   HtmlTreeError(this.elementName, ParseSourceSpan span, String msg)
-      : super(span, msg) {
-    /* super call moved to initializer */;
-  }
+      : super(span, msg);
 }
 
 class HtmlParseTreeResult {
   List<HtmlAst> rootNodes;
   List<ParseError> errors;
-  HtmlParseTreeResult(this.rootNodes, this.errors) {}
+  HtmlParseTreeResult(this.rootNodes, this.errors);
 }
 
 @Injectable()
@@ -103,26 +99,26 @@ class TreeBuilder {
     return null;
   }
 
-  _consumeCdata(HtmlToken startToken) {
+  void _consumeCdata(HtmlToken startToken) {
     this._consumeText(this._advance());
     this._advanceIf(HtmlTokenType.CDATA_END);
   }
 
-  _consumeComment(HtmlToken token) {
+  void _consumeComment(HtmlToken token) {
     var text = this._advanceIf(HtmlTokenType.RAW_TEXT);
     this._advanceIf(HtmlTokenType.COMMENT_END);
-    var value = isPresent(text) ? text.parts[0].trim() : null;
+    var value = text != null ? text.parts[0].trim() : null;
     this._addToParent(new HtmlCommentAst(value, token.sourceSpan));
   }
 
-  _consumeExpansion(HtmlToken token) {
+  void _consumeExpansion(HtmlToken token) {
     var switchValue = this._advance();
     var type = this._advance();
     var cases = <HtmlExpansionCaseAst>[];
     // read =
     while (identical(this.peek.type, HtmlTokenType.EXPANSION_CASE_VALUE)) {
       var expCase = this._parseExpansionCase();
-      if (isBlank(expCase)) return;
+      if (expCase == null) return;
       cases.add(expCase);
     }
     // read the final }
@@ -149,7 +145,7 @@ class TreeBuilder {
     // read until }
     var start = this._advance();
     var exp = this._collectExpansionExpTokens(start);
-    if (isBlank(exp)) return null;
+    if (exp == null) return null;
     var end = this._advance();
     exp.add(new HtmlToken(HtmlTokenType.EOF, [], end.sourceSpan));
     // parse everything in between { and }
@@ -205,11 +201,11 @@ class TreeBuilder {
     }
   }
 
-  _consumeText(HtmlToken token) {
+  void _consumeText(HtmlToken token) {
     var text = token.parts[0];
     if (text.length > 0 && text[0] == "\n") {
       var parent = this._getParentElement();
-      if (isPresent(parent) &&
+      if (parent != null &&
           parent.children.length == 0 &&
           getHtmlTagDefinition(parent.name).ignoreFirstLf) {
         text = text.substring(1);
@@ -222,14 +218,14 @@ class TreeBuilder {
 
   void _closeVoidElement() {
     if (this.elementStack.length > 0) {
-      var el = ListWrapper.last(this.elementStack);
+      var el = elementStack.isNotEmpty ? elementStack.last : null;
       if (getHtmlTagDefinition(el.name).isVoid) {
         this.elementStack.removeLast();
       }
     }
   }
 
-  _consumeStartTag(HtmlToken startTagToken) {
+  void _consumeStartTag(HtmlToken startTagToken) {
     var prefix = startTagToken.parts[0];
     var name = startTagToken.parts[1];
     var attrs = <HtmlAttrAst>[];
@@ -263,16 +259,16 @@ class TreeBuilder {
     }
   }
 
-  _pushElement(HtmlElementAst el) {
+  void _pushElement(HtmlElementAst el) {
     if (this.elementStack.length > 0) {
-      var parentEl = ListWrapper.last(this.elementStack);
+      var parentEl = elementStack.isNotEmpty ? elementStack.last : null;
       if (getHtmlTagDefinition(parentEl.name).isClosedByChild(el.name)) {
         this.elementStack.removeLast();
       }
     }
     var tagDef = getHtmlTagDefinition(el.name);
     var parentEl = this._getParentElement();
-    if (tagDef.requireExtraParent(isPresent(parentEl) ? parentEl.name : null)) {
+    if (tagDef.requireExtraParent(parentEl != null ? parentEl.name : null)) {
       var newParent = new HtmlElementAst(tagDef.parentToAdd, [], [el],
           el.sourceSpan, el.startSourceSpan, el.endSourceSpan);
       this._addToParent(newParent);
@@ -284,7 +280,7 @@ class TreeBuilder {
     }
   }
 
-  _consumeEndTag(HtmlToken endTagToken) {
+  void _consumeEndTag(HtmlToken endTagToken) {
     var fullName = getElementFullName(
         endTagToken.parts[0], endTagToken.parts[1], this._getParentElement());
     this._getParentElement().endSourceSpan = endTagToken.sourceSpan;
@@ -303,8 +299,7 @@ class TreeBuilder {
         stackIndex--) {
       var el = this.elementStack[stackIndex];
       if (el.name == fullName) {
-        ListWrapper.splice(this.elementStack, stackIndex,
-            this.elementStack.length - stackIndex);
+        elementStack.removeRange(stackIndex, elementStack.length);
         return true;
       }
       if (!getHtmlTagDefinition(el.name).closedByParent) {
@@ -328,14 +323,12 @@ class TreeBuilder {
   }
 
   HtmlElementAst _getParentElement() {
-    return this.elementStack.length > 0
-        ? ListWrapper.last(this.elementStack)
-        : null;
+    return this.elementStack.length > 0 ? elementStack.last : null;
   }
 
-  _addToParent(HtmlAst node) {
+  void _addToParent(HtmlAst node) {
     var parent = this._getParentElement();
-    if (isPresent(parent)) {
+    if (parent != null) {
       parent.children.add(node);
     } else {
       this.rootNodes.add(node);
@@ -345,9 +338,9 @@ class TreeBuilder {
 
 String getElementFullName(
     String prefix, String localName, HtmlElementAst parentElement) {
-  if (isBlank(prefix)) {
+  if (prefix == null) {
     prefix = getHtmlTagDefinition(localName).implicitNamespacePrefix;
-    if (isBlank(prefix) && isPresent(parentElement)) {
+    if (prefix == null && parentElement != null) {
       prefix = getNsPrefix(parentElement.name);
     }
   }

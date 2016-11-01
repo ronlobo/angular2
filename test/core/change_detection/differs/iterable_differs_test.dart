@@ -1,15 +1,16 @@
 @TestOn('browser')
 library angular2.test.core.change_detection.differs.iterable_differs_test;
 
-import "package:angular2/testing_internal.dart";
+import "package:angular2/core.dart" show provide, ReflectiveInjector;
 import "package:angular2/src/core/change_detection/differs/iterable_differs.dart"
     show IterableDiffers;
-import "package:angular2/core.dart" show provide, ReflectiveInjector;
-import 'package:test/test.dart';
+import "package:angular2/testing_internal.dart";
 import 'package:mockito/mockito.dart';
+import 'package:test/test.dart';
+
 import '../../core_mocks.dart';
 
-main() {
+void main() {
   group("IterableDiffers", () {
     var factory1;
     var factory2;
@@ -28,15 +29,14 @@ main() {
       when(factory1.supports(any)).thenReturn(false);
       when(factory2.supports(any)).thenReturn(true);
       when(factory2.supports(any)).thenReturn(true);
-      var differs =
-          IterableDiffers.create(([factory1, factory2, factory3] as dynamic));
+      var differs = IterableDiffers.create(([factory1, factory2, factory3]));
       expect(differs.find("some object"), factory2);
     });
     test("should copy over differs from the parent repo", () {
       when(factory1.supports(any)).thenReturn(true);
       when(factory2.supports(any)).thenReturn(false);
-      var parent = IterableDiffers.create(([factory1] as dynamic));
-      var child = IterableDiffers.create(([factory2] as dynamic), parent);
+      var parent = IterableDiffers.create(([factory1]));
+      var child = IterableDiffers.create(([factory2]), parent);
       expect(child.factories, [factory2, factory1]);
     });
     group(".extend()", () {

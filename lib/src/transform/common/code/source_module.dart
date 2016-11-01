@@ -1,4 +1,4 @@
-import 'package:analyzer/src/generated/scanner.dart' show Keyword;
+import 'package:analyzer/dart/ast/token.dart' show Keyword;
 import 'package:angular2/src/compiler/offline_compiler.dart';
 import 'package:angular2/src/transform/common/model/ng_deps_model.pb.dart';
 
@@ -19,14 +19,14 @@ String writeSourceModule(SourceModule sourceModule, {String libraryName}) {
 
 /// Uses `writer` to write a Dart library representing `model` and
 /// `sourceModule`.
-void writeTemplateFile(
-    NgDepsWriterMixin writer, NgDepsModel model, SourceModule sourceModule) {
+void writeTemplateFile(NgDepsWriterMixin writer, NgDepsModel model,
+    SourceModule sourceModule, bool ignoreRealTemplateIssues) {
   if (model == null) return null;
   var sourceModuleCode = '';
   if (sourceModule != null) {
     sourceModuleCode = sourceModule.source;
   }
-  writer.writeNgDepsModel(model, sourceModuleCode);
+  writer.writeNgDepsModel(model, sourceModuleCode, ignoreRealTemplateIssues);
 }
 
 final _unsafeCharsPattern = new RegExp(r'[^a-zA-Z0-9_\.]');

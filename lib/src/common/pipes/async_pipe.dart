@@ -2,25 +2,21 @@ import "dart:async";
 
 import "package:angular2/core.dart"
     show Pipe, Injectable, ChangeDetectorRef, OnDestroy, WrappedValue;
-import "package:angular2/src/facade/async.dart" show ObservableWrapper;
-import "package:angular2/src/facade/lang.dart"
-    show isBlank, isPresent, isPromise;
 
 import "invalid_pipe_argument_exception.dart" show InvalidPipeArgumentException;
 
 class ObservableStrategy {
-  dynamic createSubscription(dynamic async, dynamic updateLatestValue) {
-    return ObservableWrapper.subscribe(async, updateLatestValue, (e) {
-      throw e;
-    });
+  StreamSubscription createSubscription(
+      Stream stream, void updateLatestValue(value)) {
+    return stream.listen(updateLatestValue, onError: (e) => throw e);
   }
 
-  void dispose(dynamic subscription) {
-    ObservableWrapper.dispose(subscription);
+  void dispose(StreamSubscription subscription) {
+    subscription.cancel();
   }
 
-  void onDestroy(dynamic subscription) {
-    ObservableWrapper.dispose(subscription);
+  void onDestroy(StreamSubscription subscription) {
+    dispose(subscription);
   }
 }
 
@@ -38,52 +34,35 @@ var _promiseStrategy = new PromiseStrategy();
 var _observableStrategy = new ObservableStrategy();
 Future<dynamic> ___unused;
 
-/**
- * The `async` pipe subscribes to an Observable or Promise and returns the latest value it has
- * emitted.
- * When a new value is emitted, the `async` pipe marks the component to be checked for changes.
- *
- * ### Example
- *
- * This example binds a `Promise` to the view. Clicking the `Resolve` button resolves the
- * promise.
- *
- * {@example core/pipes/ts/async_pipe/async_pipe_example.ts region='AsyncPipe'}
- *
- * It's also possible to use `async` with Observables. The example below binds the `time` Observable
- * to the view. Every 500ms, the `time` Observable updates the view with the current time.
- *
- * ```typescript
- * ```
- */
+/// An `async` pipe awaits for a value from a [Future] or [Stream]. When a value
+/// is received, the `async` pipe marks the component to be checked for changes.
+///
+/// ### Example
+///
+/// {@example common/pipes/lib/async_pipe.dart region='AsyncPipe'}
+///
 @Pipe(name: "async", pure: false)
 @Injectable()
 class AsyncPipe implements OnDestroy {
-  /** @internal */
-  Object _latestValue = null;
-  /** @internal */
-  Object _latestReturnedValue = null;
-  /** @internal */
-  Object _subscription = null;
-  /** @internal */
-  dynamic /* Stream< dynamic > | Future< dynamic > | EventEmitter< dynamic > */ _obj =
-      null;
-  dynamic _strategy = null;
-  /** @internal */
+  Object _latestValue;
+  Object _latestReturnedValue;
+  Object _subscription;
+  dynamic /* Stream< dynamic > | Future< dynamic > | EventEmitter< dynamic > */ _obj;
+  dynamic _strategy;
   ChangeDetectorRef _ref;
   AsyncPipe(ChangeDetectorRef _ref) {
     this._ref = _ref;
   }
   void ngOnDestroy() {
-    if (isPresent(this._subscription)) {
+    if (this._subscription != null) {
       this._dispose();
     }
   }
 
   dynamic transform(
       dynamic /* Stream< dynamic > | Future< dynamic > | EventEmitter< dynamic > */ obj) {
-    if (isBlank(this._obj)) {
-      if (isPresent(obj)) {
+    if (_obj == null) {
+      if (obj != null) {
         this._subscribe(obj);
       }
       this._latestReturnedValue = this._latestValue;
@@ -101,7 +80,6 @@ class AsyncPipe implements OnDestroy {
     }
   }
 
-  /** @internal */
   void _subscribe(
       dynamic /* Stream< dynamic > | Future< dynamic > | EventEmitter< dynamic > */ obj) {
     this._obj = obj;
@@ -110,19 +88,17 @@ class AsyncPipe implements OnDestroy {
         obj, (Object value) => this._updateLatestValue(obj, value));
   }
 
-  /** @internal */
   dynamic _selectStrategy(
       dynamic /* Stream< dynamic > | Future< dynamic > | EventEmitter< dynamic > */ obj) {
-    if (isPromise(obj)) {
+    if (obj is Future) {
       return _promiseStrategy;
-    } else if (ObservableWrapper.isObservable(obj)) {
+    } else if (obj is Stream) {
       return _observableStrategy;
     } else {
       throw new InvalidPipeArgumentException(AsyncPipe, obj);
     }
   }
 
-  /** @internal */
   void _dispose() {
     this._strategy.dispose(this._subscription);
     this._latestValue = null;
@@ -131,8 +107,7 @@ class AsyncPipe implements OnDestroy {
     this._obj = null;
   }
 
-  /** @internal */
-  _updateLatestValue(dynamic async, Object value) {
+  void _updateLatestValue(dynamic async, Object value) {
     if (identical(async, this._obj)) {
       this._latestValue = value;
       this._ref.markForCheck();

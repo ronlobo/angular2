@@ -1,5 +1,3 @@
-import "package:angular2/src/facade/lang.dart" show isBlank;
-
 import "compile_metadata.dart" show CompileIdentifierMetadata;
 import "identifiers.dart" show Identifiers;
 
@@ -10,18 +8,16 @@ class CompilerConfig {
   RenderTypes renderTypes;
   CompilerConfig(this.genDebugInfo, this.logBindingUpdate, this.useJit,
       [RenderTypes renderTypes = null]) {
-    if (isBlank(renderTypes)) {
+    if (renderTypes == null) {
       renderTypes = new DefaultRenderTypes();
     }
     this.renderTypes = renderTypes;
   }
 }
 
-/**
- * Types used for the renderer.
- * Can be replaced to specialize the generated output to a specific renderer
- * to help tree shaking.
- */
+/// Types used for the renderer.
+/// Can be replaced to specialize the generated output to a specific renderer
+/// to help tree shaking.
 abstract class RenderTypes {
   CompileIdentifierMetadata get renderer;
 
@@ -38,9 +34,9 @@ abstract class RenderTypes {
 
 class DefaultRenderTypes implements RenderTypes {
   var renderer = Identifiers.Renderer;
-  var renderText = null;
-  var renderElement = null;
-  var renderComment = null;
-  var renderNode = null;
-  var renderEvent = null;
+  var renderText;
+  var renderElement;
+  var renderComment;
+  var renderNode;
+  var renderEvent;
 }

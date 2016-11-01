@@ -5,7 +5,7 @@ import "package:angular2/src/compiler/style_url_resolver.dart"
 import "package:angular2/src/compiler/url_resolver.dart" show UrlResolver;
 import 'package:test/test.dart';
 
-main() {
+void main() {
   group("extractStyleUrls", () {
     var urlResolver;
     setUp(() {
@@ -100,9 +100,7 @@ main() {
 
 /// The real thing behaves differently between Dart and JS for package URIs.
 class FakeUrlResolver extends UrlResolver {
-  FakeUrlResolver() : super() {
-    /* super call moved to initializer */;
-  }
+  FakeUrlResolver();
   String resolve(String baseUrl, String url) {
     return "fake_resolved_url";
   }

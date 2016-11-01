@@ -1,10 +1,6 @@
-import "package:angular2/src/facade/lang.dart" show isBlank;
-
 import "injector.dart" show Injector, InjectorFactory, THROW_IF_NOT_FOUND;
 
-/**
- * An simple injector based on a Map of values.
- */
+/// A simple injector based on a Map of values.
 class MapInjector implements Injector {
   Injector _parent;
   static InjectorFactory<dynamic> createFactory(
@@ -14,11 +10,11 @@ class MapInjector implements Injector {
 
   Map<dynamic, dynamic> _values;
   MapInjector([this._parent = null, Map<dynamic, dynamic> values = null]) {
-    if (isBlank(values)) {
+    if (values == null) {
       values = new Map<dynamic, dynamic>();
     }
     this._values = values;
-    if (isBlank(this._parent)) {
+    if (_parent == null) {
       this._parent = Injector.NULL;
     }
   }
@@ -33,12 +29,10 @@ class MapInjector implements Injector {
   }
 }
 
-/**
- * InjectorFactory for MapInjector.
- */
+/// InjectorFactory for MapInjector.
 class MapInjectorFactory implements InjectorFactory<dynamic> {
   Map<dynamic, dynamic> _values;
-  MapInjectorFactory([this._values = null]) {}
+  MapInjectorFactory([this._values = null]);
   Injector create([Injector parent = null, dynamic context = null]) {
     return new MapInjector(parent, this._values);
   }

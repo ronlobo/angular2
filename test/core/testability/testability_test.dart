@@ -1,28 +1,28 @@
 @TestOn('browser')
 library angular2.test.core.testability.testability_test;
 
+import "dart:async";
+
 import "package:angular2/src/core/di.dart" show Injectable;
-import "package:angular2/testing_internal.dart";
 import "package:angular2/src/core/testability/testability.dart"
     show Testability;
 import "package:angular2/src/core/zone/ng_zone.dart" show NgZone;
-import "package:angular2/src/facade/lang.dart" show scheduleMicroTask;
-import "package:angular2/src/facade/async.dart"
-    show EventEmitter, ObservableWrapper;
+import "package:angular2/src/facade/async.dart" show EventEmitter;
+import "package:angular2/testing_internal.dart";
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
 // Schedules a microtasks (using a resolved promise .then())
-void microTask(Function fn) {
-  scheduleMicroTask(() {
+void microTask(void fn()) {
+  scheduleMicrotask(() {
     // We do double dispatch so that we  can wait for scheduleMicrotasks in
     // the Testability when NgZone becomes stable.
-    scheduleMicroTask(fn);
+    scheduleMicrotask(fn);
   });
 }
 
 abstract class TestabilityCallback {
-  execute(value);
+  dynamic execute(value);
 }
 
 class MockCallback extends Mock implements TestabilityCallback {}
@@ -30,12 +30,12 @@ class MockCallback extends Mock implements TestabilityCallback {}
 @Injectable()
 class TestZone extends NgZone {
   EventEmitter<dynamic> _onUnstableStream;
-  get onUnstable {
+  EventEmitter get onUnstable {
     return _onUnstableStream;
   }
 
   EventEmitter<dynamic> _onStableStream;
-  get onStable {
+  EventEmitter get onStable {
     return _onStableStream;
   }
 
@@ -44,15 +44,15 @@ class TestZone extends NgZone {
     _onStableStream = new EventEmitter(false);
   }
   void unstable() {
-    ObservableWrapper.callEmit(this._onUnstableStream, null);
+    this._onUnstableStream.add(null);
   }
 
   void stable() {
-    ObservableWrapper.callEmit(this._onStableStream, null);
+    this._onStableStream.add(null);
   }
 }
 
-main() {
+void main() {
   group("Testability", () {
     Testability testability;
     MockCallback callback;

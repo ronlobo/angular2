@@ -1,35 +1,28 @@
-import "package:angular2/src/facade/lang.dart" show isPresent;
-
 class ParseLocation {
   ParseSourceFile file;
   num offset;
   num line;
   num col;
-  ParseLocation(this.file, this.offset, this.line, this.col) {}
+  ParseLocation(this.file, this.offset, this.line, this.col);
   String toString() {
-    return isPresent(this.offset)
+    return offset != null
         ? '''${ this . file . url}@${ this . line}:${ this . col}'''
         : this.file.url;
   }
 }
 
 class ParseSourceFile {
-  String content;
-  String url;
-  ParseSourceFile(this.content, this.url) {}
+  final String content;
+  final String url;
+  ParseSourceFile(this.content, this.url);
 }
 
 class ParseSourceSpan {
   ParseLocation start;
   ParseLocation end;
-  ParseSourceSpan(this.start, this.end) {}
-  String toString() {
-    return this
-        .start
-        .file
-        .content
-        .substring(this.start.offset, this.end.offset);
-  }
+  ParseSourceSpan(this.start, this.end);
+  String toString() =>
+      start.file.content.substring(this.start.offset, this.end.offset);
 }
 
 enum ParseErrorLevel { WARNING, FATAL }
@@ -38,12 +31,12 @@ abstract class ParseError {
   ParseSourceSpan span;
   String msg;
   ParseErrorLevel level;
-  ParseError(this.span, this.msg, [this.level = ParseErrorLevel.FATAL]) {}
+  ParseError(this.span, this.msg, [this.level = ParseErrorLevel.FATAL]);
   String toString() {
     var source = this.span.start.file.content;
     var ctxStart = this.span.start.offset;
     var contextStr = "";
-    if (isPresent(ctxStart)) {
+    if (ctxStart != null) {
       if (ctxStart > source.length - 1) {
         ctxStart = source.length - 1;
       }

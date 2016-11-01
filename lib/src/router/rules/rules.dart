@@ -1,8 +1,6 @@
 import "dart:async";
 
-import "package:angular2/src/facade/collection.dart" show Map;
 import "package:angular2/src/facade/exceptions.dart" show BaseException;
-import "package:angular2/src/facade/lang.dart" show isPresent, isBlank;
 
 import "../instruction.dart" show ComponentInstruction;
 import "../url_parser.dart" show Url, convertUrlParamsToArray;
@@ -17,23 +15,19 @@ class PathMatch extends RouteMatch {
   ComponentInstruction instruction;
   Url remaining;
   List<Url> remainingAux;
-  PathMatch(this.instruction, this.remaining, this.remainingAux) : super() {
-    /* super call moved to initializer */;
-  }
+  PathMatch(this.instruction, this.remaining, this.remainingAux);
 }
 
 class RedirectMatch extends RouteMatch {
   List<dynamic> redirectTo;
   var specificity;
-  RedirectMatch(this.redirectTo, this.specificity) : super() {
-    /* super call moved to initializer */;
-  }
+  RedirectMatch(this.redirectTo, this.specificity);
 }
 
 // Rules are responsible for recognizing URL segments and generating instructions
 abstract class AbstractRule {
-  String hash;
-  String path;
+  String get hash;
+  String get path;
   Future<RouteMatch> recognize(Url beginningSegment);
   ComponentInstruction generate(Map<String, dynamic> params);
 }
@@ -45,7 +39,7 @@ class RedirectRule implements AbstractRule {
   RedirectRule(this._pathRecognizer, this.redirectTo) {
     this.hash = this._pathRecognizer.hash;
   }
-  get path {
+  String get path {
     return this._pathRecognizer.toString();
   }
 
@@ -54,12 +48,10 @@ class RedirectRule implements AbstractRule {
         "you cannot set the path of a RedirectRule directly");
   }
 
-  /**
-   * Returns `null` or a `ParsedUrl` representing the new path to match
-   */
+  /// Returns `null` or a `ParsedUrl` representing the new path to match
   Future<RouteMatch> recognize(Url beginningSegment) {
-    var match = null;
-    if (isPresent(this._pathRecognizer.matchUrl(beginningSegment))) {
+    RouteMatch match;
+    if (_pathRecognizer.matchUrl(beginningSegment) != null) {
       match =
           new RedirectMatch(this.redirectTo, this._pathRecognizer.specificity);
     }
@@ -87,7 +79,7 @@ class RouteRule implements AbstractRule {
     this.hash = this._routePath.hash;
     this.terminal = this._routePath.terminal;
   }
-  get path {
+  String get path {
     return this._routePath.toString();
   }
 
@@ -97,7 +89,7 @@ class RouteRule implements AbstractRule {
 
   Future<RouteMatch> recognize(Url beginningSegment) {
     var res = this._routePath.matchUrl(beginningSegment);
-    if (isBlank(res)) {
+    if (res == null) {
       return null;
     }
     return this.handler.resolveComponentType().then((_) {
@@ -121,7 +113,7 @@ class RouteRule implements AbstractRule {
 
   ComponentInstruction _getInstruction(
       String urlPath, List<String> urlParams, Map<String, String> params) {
-    if (isBlank(this.handler.componentType)) {
+    if (handler.componentType == null) {
       throw new BaseException(
           '''Tried to get instruction before the type was loaded.''');
     }

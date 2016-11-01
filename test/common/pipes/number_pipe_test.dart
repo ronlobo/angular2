@@ -1,10 +1,11 @@
+@TestOn('browser')
 library angular2.test.common.pipes.number_pipe_test;
 
 import "package:angular2/common.dart"
     show DecimalPipe, PercentPipe, CurrencyPipe;
 import 'package:test/test.dart';
 
-main() {
+void main() {
   group("Number pipes", () {
     group("DecimalPipe", () {
       var pipe;

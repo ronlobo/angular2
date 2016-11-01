@@ -22,11 +22,11 @@ const RADIO_VALUE_ACCESSOR = const Provider(NG_VALUE_ACCESSOR,
 @Injectable()
 class RadioControlRegistry {
   List<dynamic> _accessors = [];
-  add(NgControl control, RadioControlValueAccessor accessor) {
+  void add(NgControl control, RadioControlValueAccessor accessor) {
     this._accessors.add([control, accessor]);
   }
 
-  remove(RadioControlValueAccessor accessor) {
+  void remove(RadioControlValueAccessor accessor) {
     var indexToRemove = -1;
     for (var i = 0; i < this._accessors.length; ++i) {
       if (identical(this._accessors[i][1], accessor)) {
@@ -36,7 +36,7 @@ class RadioControlRegistry {
     _accessors.removeAt(indexToRemove);
   }
 
-  select(RadioControlValueAccessor accessor) {
+  void select(RadioControlValueAccessor accessor) {
     this._accessors.forEach((c) {
       if (identical(c[0].control.root, accessor._control.control.root) &&
           !identical(c[1], accessor)) {
@@ -46,33 +46,30 @@ class RadioControlRegistry {
   }
 }
 
-/**
- * The value provided by the forms API for radio buttons.
- */
+/// The value provided by the forms API for radio buttons.
 class RadioButtonState {
   bool checked;
   String value;
-  RadioButtonState(this.checked, this.value) {}
+  RadioButtonState(this.checked, this.value);
 }
 
-/**
- * The accessor for writing a radio control value and listening to changes that is used by the
- * [NgModel], [NgFormControl], and [NgControlName] directives.
- *
- *  ### Example
- *  ```
- *  @Component({
- *    template: `
- *      <input type="radio" name="food" [(ngModel)]="foodChicken">
- *      <input type="radio" name="food" [(ngModel)]="foodFish">
- *    `
- *  })
- *  class FoodCmp {
- *    foodChicken = new RadioButtonState(true, "chicken");
- *    foodFish = new RadioButtonState(false, "fish");
- *  }
- *  ```
- */
+/// The accessor for writing a radio control value and listening to changes that
+/// is used by the [NgModel], [NgFormControl], and [NgControlName] directives.
+///
+/// ### Example
+///
+/// ```dart
+/// @Component(
+///   template: '''
+///     <input type="radio" name="food" [(ngModel)]="foodChicken">
+///     <input type="radio" name="food" [(ngModel)]="foodFish">
+///   '''
+/// )
+/// class FoodCmp {
+///   RadioButtonState foodChicken = new RadioButtonState(true, "chicken");
+///   RadioButtonState foodFish = new RadioButtonState(false, "fish");
+/// }
+/// ```
 @Directive(
     selector:
         "input[type=radio][ngControl],input[type=radio][ngFormControl],input[type=radio][ngModel]",
@@ -84,18 +81,15 @@ class RadioControlValueAccessor
   ElementRef _elementRef;
   RadioControlRegistry _registry;
   Injector _injector;
-  /** @internal */
   RadioButtonState _state;
-  /** @internal */
   NgControl _control;
   @Input()
   String name;
-  /** @internal */
   Function _fn;
   var onChange = () {};
   var onTouched = () {};
   RadioControlValueAccessor(
-      this._renderer, this._elementRef, this._registry, this._injector) {}
+      this._renderer, this._elementRef, this._registry, this._injector);
   void ngOnInit() {
     this._control = this._injector.get(NgControl);
     this._registry.add(this._control, this);

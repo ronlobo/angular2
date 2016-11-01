@@ -1,84 +1,83 @@
 @TestOn('browser')
 library angular2.test.compiler.expression_parser.lexer_test;
 
-import "package:angular2/testing_internal.dart";
 import "package:angular2/src/compiler/expression_parser/lexer.dart"
     show Lexer, Token;
-import "package:angular2/src/facade/lang.dart" show StringWrapper;
+import "package:angular2/testing_internal.dart";
 import "package:test/test.dart";
 
-List<dynamic> lex(String text) {
+List<Token> lex(String text) {
   return new Lexer().tokenize(text);
 }
 
-expectToken(token, index) {
+void expectToken(token, index) {
   expect(token is Token, isTrue);
   expect(token.index, index);
 }
 
-expectCharacterToken(token, index, character) {
+void expectCharacterToken(token, index, character) {
   expect(character, hasLength(1));
   expectToken(token, index);
-  expect(token.isCharacter(StringWrapper.charCodeAt(character, 0)), isTrue);
+  expect(token.isCharacter(character.codeUnitAt(0)), isTrue);
 }
 
-expectOperatorToken(token, index, operator) {
+void expectOperatorToken(token, index, operator) {
   expectToken(token, index);
   expect(token.isOperator(operator), isTrue);
 }
 
-expectNumberToken(token, index, n) {
+void expectNumberToken(token, index, n) {
   expectToken(token, index);
   expect(token.isNumber(), isTrue);
   expect(token.toNumber(), n);
 }
 
-expectStringToken(token, index, str) {
+void expectStringToken(token, index, str) {
   expectToken(token, index);
   expect(token.isString(), isTrue);
   expect(token.toString(), str);
 }
 
-expectIdentifierToken(token, index, identifier) {
+void expectIdentifierToken(Token token, int index, identifier) {
   expectToken(token, index);
   expect(token.isIdentifier(), isTrue);
   expect(token.toString(), identifier);
 }
 
-expectKeywordToken(token, index, keyword) {
+void expectKeywordToken(token, index, keyword) {
   expectToken(token, index);
   expect(token.isKeyword(), isTrue);
   expect(token.toString(), keyword);
 }
 
-main() {
+void main() {
   group("lexer", () {
     group("token", () {
       test("should tokenize a simple identifier", () {
-        List<num> tokens = lex("j");
+        var tokens = lex("j");
         expect(tokens.length, 1);
         expectIdentifierToken(tokens[0], 0, "j");
       });
       test("should tokenize a dotted identifier", () {
-        List<num> tokens = lex("j.k");
+        var tokens = lex("j.k");
         expect(tokens.length, 3);
         expectIdentifierToken(tokens[0], 0, "j");
         expectCharacterToken(tokens[1], 1, ".");
         expectIdentifierToken(tokens[2], 2, "k");
       });
       test("should tokenize an operator", () {
-        List<num> tokens = lex("j-k");
+        var tokens = lex("j-k");
         expect(tokens.length, 3);
         expectOperatorToken(tokens[1], 1, "-");
       });
       test("should tokenize an indexed operator", () {
-        List<num> tokens = lex("j[k]");
+        var tokens = lex("j[k]");
         expect(tokens.length, 4);
         expectCharacterToken(tokens[1], 1, "[");
         expectCharacterToken(tokens[3], 3, "]");
       });
       test("should tokenize numbers", () {
-        List<num> tokens = lex("88");
+        var tokens = lex("88");
         expect(tokens.length, 1);
         expectNumberToken(tokens[0], 0, 88);
       });
@@ -233,6 +232,10 @@ main() {
       test("should tokenize ?. as operator", () {
         List<Token> tokens = lex("?.");
         expectOperatorToken(tokens[0], 0, "?.");
+      });
+      test("should tokenize ?? as operator", () {
+        List<Token> tokens = lex("??");
+        expectOperatorToken(tokens[0], 0, "??");
       });
     });
   });

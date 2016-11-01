@@ -2,7 +2,7 @@ import "package:angular2/src/core/linker/injector_factory.dart"
     show CodegenInjector;
 import "package:angular2/src/facade/exceptions.dart" show BaseException;
 
-import "output_interpreter.dart" show InstanceFactory, DynamicInstance;
+import "dynamic_instance.dart";
 
 class InterpretiveInjectorInstanceFactory implements InstanceFactory {
   DynamicInstance createInstance(
@@ -16,7 +16,7 @@ class InterpretiveInjectorInstanceFactory implements InstanceFactory {
       return new _InterpretiveInjector(args, clazz, props, getters, methods);
     }
     throw new BaseException(
-        '''Can\'t instantiate class ${ superClass} in interpretative mode''');
+        "Can't instantiate class ${superClass} in interpretative mode");
   }
 }
 
@@ -28,9 +28,7 @@ class _InterpretiveInjector extends CodegenInjector<dynamic>
   Map<String, Function> methods;
   _InterpretiveInjector(
       List<dynamic> args, this.clazz, this.props, this.getters, this.methods)
-      : super(args[0], args[1], args[2]) {
-    /* super call moved to initializer */;
-  }
+      : super(args[0], args[1], args[2]);
   dynamic getInternal(dynamic token, dynamic notFoundResult) {
     var m = this.methods["getInternal"];
     return m(token, notFoundResult);

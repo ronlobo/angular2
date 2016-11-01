@@ -1,19 +1,19 @@
 @TestOn('browser')
 library angular2.test.compiler.output.output_emitter_test;
 
-import "package:angular2/testing_internal.dart";
-import "package:angular2/src/facade/lang.dart" show IS_DART;
-import "output_emitter_codegen_typed.dart" as typed;
 import "package:angular2/src/compiler/output/output_interpreter.dart"
     show interpretStatements;
-import "output_emitter_util.dart"
-    show codegenStmts, ExternalClass, DynamicClassInstanceFactory;
-import "package:angular2/src/facade/async.dart" show EventEmitter;
 import "package:angular2/src/core/linker/view_type.dart" show ViewType;
+import "package:angular2/src/facade/async.dart" show EventEmitter;
 import "package:angular2/src/facade/exceptions.dart" show BaseException;
+import "package:angular2/testing_internal.dart";
 import "package:test/test.dart";
 
-main() {
+import "output_emitter_codegen_typed.dart" as typed;
+import "output_emitter_util.dart"
+    show codegenStmts, ExternalClass, DynamicClassInstanceFactory;
+
+void main() {
   var outputDefs = [];
   outputDefs.add({
     "getExpressions": () => interpretStatements(
@@ -95,7 +95,7 @@ main() {
           expect(expressions["dynamicInstance"] is ExternalClass, isTrue);
         });
         test("should support reading metadataMap", () {
-          if (IS_DART && outputDef["name"] == "typed") {
+          if (outputDef["name"] == "typed") {
             expect(expressions["metadataMap"], ["someKey", "someValue"]);
           } else {
             expect(expressions["metadataMap"], isNull);
@@ -181,9 +181,10 @@ main() {
           expect(expressions["throwError"], throwsWith("someError"));
         });
         test("should support catching errors", () {
-          someOperation() {
+          void someOperation() {
             throw new BaseException("Boom!");
           }
+
           var errorAndStack = expressions["catchError"](someOperation);
           expect(errorAndStack[0].message, "Boom!");
           // Somehow we don't get stacktraces on ios7...

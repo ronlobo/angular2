@@ -21,16 +21,14 @@ import 'package:angular2/common.dart'
         Validator;
 import 'package:angular2/src/common/forms/directives/shared.dart'
     show selectValueAccessor, composeValidators;
-import 'package:angular2/src/facade/async.dart' show TimerWrapper;
-import 'package:angular2/src/facade/promise.dart' show PromiseWrapper;
 import 'package:angular2/src/core/change_detection.dart' show SimpleChange;
 import 'package:test/test.dart';
 import '../control_mocks.dart';
 
 class DummyControlValueAccessor implements ControlValueAccessor {
   var writtenValue;
-  registerOnChange(fn) {}
-  registerOnTouched(fn) {}
+  void registerOnChange(fn) {}
+  void registerOnTouched(fn) {}
   void writeValue(dynamic obj) {
     this.writtenValue = obj;
   }
@@ -42,24 +40,14 @@ class CustomValidatorDirective implements Validator {
   }
 }
 
-asyncValidator(expected, [timeout = 0]) {
-  return (c) {
-    var completer = PromiseWrapper.completer();
-    var res = c.value != expected ? {"async": true} : null;
-    if (timeout == 0) {
-      completer.resolve(res);
-    } else {
-      TimerWrapper.setTimeout(() {
-        completer.resolve(res);
-      }, timeout);
-    }
-    return completer.promise;
-  };
+Function asyncValidator(expected) {
+  return (AbstractControl c) async =>
+      c.value != expected ? {"async": true} : null;
 }
 
 class MockNgControl extends Mock implements NgControl {}
 
-main() {
+void main() {
   group("Shared selectValueAccessor", () {
     var defaultAccessor;
     NgControl dir;
@@ -121,7 +109,7 @@ main() {
   });
   group("NgFormModel", () {
     var defaultAccessor;
-    var form;
+    NgFormModel form;
     ControlGroup formModel;
     var loginControlDir;
     setUp(() {
@@ -257,10 +245,10 @@ main() {
     });
     group("NgForm", () {
       var defaultAccessor;
-      var form;
+      NgForm form;
       ControlGroup formModel;
       var loginControlDir;
-      var personControlGroupDir;
+      NgControlGroup personControlGroupDir;
       setUp(() {
         defaultAccessor = new DefaultValueAccessor(null, null);
         form = new NgForm([], []);

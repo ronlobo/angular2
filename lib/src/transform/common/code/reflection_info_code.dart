@@ -33,7 +33,7 @@ class ReflectionInfoVisitor extends RecursiveAstVisitor<ReflectionInfoModel> {
 
   ConstructorDeclaration _getCtor(ClassDeclaration node) {
     int numCtorsFound = 0;
-    var ctor = null;
+    var ctor;
 
     for (ClassMember classMember in node.members) {
       if (classMember is ConstructorDeclaration) {
@@ -47,6 +47,30 @@ class ReflectionInfoVisitor extends RecursiveAstVisitor<ReflectionInfoModel> {
         } else if (constructor.name == null) {
           ctor = constructor;
         }
+      }
+    }
+    // If the constructor is named but private, it won't work!
+    if (ctor != null && ctor.name != null && ctor.name.name.startsWith('_')) {
+      log.error(
+          'Invalid @Injectable() annotation: '
+          'Cannot use private constructor on class ${node.name}',
+          asset: assetId);
+    }
+    // If we don't see any constructors (factory or not) and the class is
+    // abstract we have to assume there is no way to create this object and the
+    // annotation is incorrect.
+    if (node.isAbstract) {
+      if (ctor == null) {
+        log.error(
+            'Invalid @Injectable() annotation: '
+            'Found no constructors for abstract class ${node.name}',
+            asset: assetId);
+      } else if (ctor.factoryKeyword == null) {
+        log.error(
+            'Invalid @Injectable() annotation: '
+            'Found a constructor for abstract class ${node.name} but it is '
+            'not a "factory", and cannot be invoked',
+            asset: assetId);
       }
     }
     if (numCtorsFound > 1) {
@@ -219,21 +243,21 @@ abstract class ReflectionWriterMixin
     buffer.write(suffix);
   }
 
-  writeLocalMetadataMap(List<ReflectionInfoModel> models) {
+  void writeLocalMetadataMap(List<ReflectionInfoModel> models) {
     buffer.write('const _METADATA = const ');
     _writeListWithSeparator(models, _writeLocalMetadataEntry,
-        prefix: '[', suffix: ']', separator: ',\n');
+        prefix: '<dynamic>[', suffix: ']', separator: ',\n');
     buffer.writeln(';');
   }
 
-  _writeLocalMetadataEntry(ReflectionInfoModel model) {
+  void _writeLocalMetadataEntry(ReflectionInfoModel model) {
     buffer.write('${model.name}, ');
     _writeListWithSeparator(
         model.annotations
             .where((am) => !am.name.endsWith('NgFactory'))
             .toList(),
         writeAnnotationModel,
-        prefix: 'const [',
+        prefix: 'const <dynamic>[',
         suffix: ']');
   }
 
@@ -248,7 +272,7 @@ abstract class ReflectionWriterMixin
 
     // Annotations
     _writeListWithSeparator(model.annotations, writeAnnotationModel,
-        prefix: 'const [', suffix: ']');
+        prefix: 'const <dynamic>[', suffix: ']');
     // Parameters
     _writeListWithSeparator(model.parameters, writeParameterModelForList,
         prefix: ',\nconst [', suffix: ']');
@@ -266,7 +290,7 @@ abstract class ReflectionWriterMixin
       // Interfaces
       if (model.interfaces != null && model.interfaces.isNotEmpty) {
         _writeListWithSeparator(model.interfaces, buffer.write,
-            prefix: ',\nconst [', suffix: ']');
+            prefix: ',\nconst <dynamic>[', suffix: ']');
       }
     }
     buffer.writeln(')\n)');

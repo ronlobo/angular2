@@ -1,20 +1,18 @@
-@TestOn('browser')
+@TestOn('browser && !js')
 library angular2.test.common.forms.integration_test;
 
+import 'dart:async';
+
+import "package:angular2/common.dart";
 import "package:angular2/core.dart"
     show Component, Directive, Output, EventEmitter;
-import "package:angular2/testing_internal.dart";
-import "package:angular2/src/platform/dom/dom_adapter.dart" show DOM;
-import "package:angular2/common.dart";
 import "package:angular2/core.dart" show Provider, Input;
-import "package:angular2/platform/browser.dart" show By;
-import "package:angular2/src/facade/collection.dart" show ListWrapper;
-import "package:angular2/src/facade/async.dart"
-    show ObservableWrapper, TimerWrapper;
-import "package:angular2/src/facade/promise.dart" show PromiseWrapper;
+import "package:angular2/src/common/forms/validators.dart";
+import "package:angular2/src/platform/dom/dom_adapter.dart" show DOM;
+import "package:angular2/testing_internal.dart";
 import 'package:test/test.dart';
 
-main() {
+void main() {
   group("integration tests", () {
     test("should initialize DOM elements with the given form object", () async {
       return inject([TestComponentBuilder, AsyncTestCompleter],
@@ -79,7 +77,7 @@ main() {
           fixture.detectChanges();
           var input = fixture.debugElement.query(By.css("input"));
           input.nativeElement.value = "updatedValue";
-          ObservableWrapper.subscribe(form.valueChanges, (value) {
+          form.valueChanges.listen((value) {
             throw "Should not happen";
           });
           dispatchEvent(input.nativeElement, "change");
@@ -471,10 +469,10 @@ main() {
               select.nativeElement.value = "2: Object";
               dispatchEvent(select.nativeElement, "change");
               fixture.detectChanges();
-              TimerWrapper.setTimeout(() {
+              Timer.run(() {
                 expect(testComp.selectedCity["name"], "Buffalo");
                 completer.done();
-              }, 0);
+              });
             });
           });
         });
@@ -651,8 +649,7 @@ main() {
             var input = fixture.debugElement.query(By.css("my-input"));
             expect(input.componentInstance.value, "!aa!");
             input.componentInstance.value = "!bb!";
-            ObservableWrapper.subscribe(input.componentInstance.onInput,
-                (value) {
+            input.componentInstance.onInput.listen((value) {
               expect(fixture.debugElement.componentInstance.form.value,
                   {"name": "bb"});
               completer.done();
@@ -881,8 +878,6 @@ main() {
           fixture.debugElement.componentInstance.name = null;
           fixture.detectChanges();
           var form = fixture.debugElement.children[0].inject(NgForm);
-          expect(form.controls["user"], isNull);
-          tick();
           expect(form.controls["user"], isNotNull);
           expect(form.controls["user"].controls["login"], isNotNull);
         });
@@ -1215,16 +1210,16 @@ class WrappedValue implements ControlValueAccessor {
   WrappedValue(NgControl cd) {
     cd.valueAccessor = this;
   }
-  writeValue(value) {
+  void writeValue(value) {
     this.value = '''!${ value}!''';
   }
 
-  registerOnChange(fn) {
+  void registerOnChange(fn) {
     this.onChange = fn;
   }
 
-  registerOnTouched(fn) {}
-  handleOnInput(value) {
+  void registerOnTouched(fn) {}
+  void handleOnInput(value) {
     this.onChange(value.substring(1, value.length - 1));
   }
 }
@@ -1237,31 +1232,33 @@ class MyInput implements ControlValueAccessor {
   MyInput(NgControl cd) {
     cd.valueAccessor = this;
   }
-  writeValue(value) {
+  void writeValue(value) {
     this.value = '''!${ value}!''';
   }
 
-  registerOnChange(fn) {
-    ObservableWrapper.subscribe(this.onInput, fn);
+  void registerOnChange(fn) {
+    this.onInput.listen(fn);
   }
 
-  registerOnTouched(fn) {}
-  dispatchChangeEvent() {
-    ObservableWrapper.callEmit(
-        this.onInput, this.value.substring(1, this.value.length - 1));
+  void registerOnTouched(fn) {}
+
+  void dispatchChangeEvent() {
+    this.onInput.add(this.value.substring(1, this.value.length - 1));
   }
 }
 
-uniqLoginAsyncValidator(String expectedValue) {
-  return (c) {
-    var completer = PromiseWrapper.completer();
+typedef Future AsyncValidatorFunction(AbstractControl ac);
+
+AsyncValidatorFunction uniqLoginAsyncValidator(String expectedValue) {
+  return (AbstractControl c) {
+    var completer = new Completer<Map<String, dynamic>>();
     var res = (c.value == expectedValue) ? null : {"uniqLogin": true};
-    completer.resolve(res);
-    return completer.promise;
+    completer.complete(res);
+    return completer.future;
   };
 }
 
-loginIsEmptyGroupValidator(ControlGroup c) {
+Map loginIsEmptyGroupValidator(ControlGroup c) {
   return c.controls["login"].value == "" ? {"loginIsEmpty": true} : null;
 }
 
@@ -1303,8 +1300,4 @@ class MyComp {
   }
 }
 
-sortedClassList(el) {
-  var l = DOM.classList(el);
-  ListWrapper.sort(l);
-  return l;
-}
+List sortedClassList(el) => DOM.classList(el)..sort();

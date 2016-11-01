@@ -1,4 +1,4 @@
-import "package:angular2/core.dart" show Injectable;
+import "package:angular2/di.dart" show Injectable;
 import "package:angular2/src/platform/dom/dom_adapter.dart" show DOM;
 
 import "event_manager.dart" show EventManagerPlugin;
@@ -14,15 +14,6 @@ class DomEventsPlugin extends EventManagerPlugin {
 
   Function addEventListener(
       dynamic element, String eventName, Function handler) {
-    var zone = this.manager.getZone();
-    var outsideHandler = (event) => zone.runGuarded(() => handler(event));
-    return this.manager.getZone().runOutsideAngular(
-        () => DOM.onAndCancel(element, eventName, outsideHandler));
-  }
-
-  Function addGlobalEventListener(
-      String target, String eventName, Function handler) {
-    var element = DOM.getGlobalEventTarget(target);
     var zone = this.manager.getZone();
     var outsideHandler = (event) => zone.runGuarded(() => handler(event));
     return this.manager.getZone().runOutsideAngular(

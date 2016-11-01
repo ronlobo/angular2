@@ -1,8 +1,9 @@
 import 'dart:async';
 
 import 'package:angular2/core.dart' show PLATFORM_INITIALIZER;
+import 'package:angular2/di.dart' show Injector, provide, Provider;
 import 'package:angular2/platform/testing/browser.dart';
-import 'package:angular2/src/core/di/provider.dart' show provide, Provider;
+import 'package:angular2/src/core/linker/app_view_utils.dart';
 import 'package:angular2/src/core/reflection/reflection.dart';
 import 'package:angular2/src/core/reflection/reflection_capabilities.dart';
 import "package:angular2/src/core/zone/ng_zone.dart" show NgZone;
@@ -11,6 +12,9 @@ import 'package:test/test.dart';
 
 import "internal_injector.dart";
 
+export "package:angular2/src/debug/debug_node.dart";
+
+export "by.dart";
 export "fake_async.dart";
 export "internal_injector.dart";
 export "test_component_builder.dart";
@@ -47,8 +51,11 @@ Future<dynamic> inject(List<dynamic> tokens, Function fn) async {
     if (_extraPerTestProviders != null)
       _testInjector.addProviders(_extraPerTestProviders);
   }
-
   _inTest = true;
+  _testInjector
+      .execute(new FunctionWithParamTokens([Injector], (Injector injector) {
+    appViewUtils = injector.get(AppViewUtils);
+  }));
   _testInjector.execute(funcWithParams);
   _inTest = false;
   if (AsyncTestCompleter.currentTestFuture != null) {
@@ -64,8 +71,8 @@ Future<dynamic> inject(List<dynamic> tokens, Function fn) async {
 ///  Example:
 ///
 ///    beforeEachProviders(() => [
-///        provide(Compiler).toClass(MockCompiler),
-///        provide(SomeToken).toValue(myValue),
+///        provide(Compiler, useClass: MockCompiler),
+///        provide(SomeToken, useValue: myValue),
 ///    ]);
 ///
 void beforeEachProviders(Function fn) {
@@ -87,13 +94,13 @@ void _bootstrapInternalTests() {
   if (_bootstrap_initialized) return;
   _bootstrap_initialized = true;
   reflector.reflectionCapabilities = new ReflectionCapabilities();
-  _setBaseTestProviders(_platformProviders, _applicationProviders);
+  setBaseTestProviders(_platformProviders, _applicationProviders);
 }
 
 /// Set the providers that the test injector should use.
 ///
 /// These should be providers common to every test in the suite.
-void _setBaseTestProviders(
+void setBaseTestProviders(
     List<dynamic /* Type | Provider | List < dynamic > */ > platformProviders,
     List<
         dynamic /* Type | Provider | List < dynamic > */ > applicationProviders) {
@@ -135,39 +142,72 @@ Matcher hasTextContent(expected) => new _HasTextContent(expected);
 class _ThrowsWith extends Matcher {
   // RegExp or String.
   final expected;
-  String exceptionStr;
 
   _ThrowsWith(this.expected) {
     assert(expected is RegExp || expected is String);
   }
 
   bool matches(item, Map matchState) {
+    if (item is! Function) return false;
+
     try {
       item();
-    } catch (e) {
-      exceptionStr = e.toString();
-      if (expected is String) {
-        return exceptionStr.contains(expected);
+      return false;
+    } catch (e, s) {
+      var errorString = e.toString();
+      if (expected is String && errorString.contains(expected)) {
+        return true;
+      } else if (expected is RegExp && expected.hasMatch(errorString)) {
+        return true;
+      } else {
+        addStateInfo(matchState, {'exception': errorString, 'stack': s});
+        return false;
       }
-      return (expected as RegExp).hasMatch(exceptionStr);
     }
-    return false;
   }
 
-  Description describe(Description description) => description.add('$expected');
+  Description describe(Description description) {
+    if (expected is String) {
+      return description
+          .add('throws an error with a toString() containing ')
+          .addDescriptionOf(expected);
+    }
+
+    assert(expected is RegExp);
+    return description
+        .add('throws an error with a toString() matched with ')
+        .addDescriptionOf(expected);
+  }
 
   Description describeMismatch(
       item, Description mismatchDescription, Map matchState, bool verbose) {
-    mismatchDescription.add('Expecting throw \'${expected}\' '
-        ' got \'$exceptionStr\'');
-    return mismatchDescription;
+    if (item is! Function) {
+      return mismatchDescription.add('is not a Function or Future');
+    } else if (matchState['exception'] == null) {
+      return mismatchDescription.add('did not throw');
+    } else {
+      if (expected is String) {
+        mismatchDescription
+            .add('threw an error with a toString() containing ')
+            .addDescriptionOf(matchState['exception']);
+      } else {
+        assert(expected is RegExp);
+        mismatchDescription
+            .add('threw an error with a toString() matched with ')
+            .addDescriptionOf(matchState['exception']);
+      }
+      if (verbose) {
+        mismatchDescription.add(' at ').add(matchState['stack'].toString());
+      }
+      return mismatchDescription;
+    }
   }
 }
 
 Matcher throwsWith(message) => new _ThrowsWith(message);
 
 String _elementText(n) {
-  hasNodes(n) {
+  bool hasNodes(n) {
     var children = DOM.childNodes(n);
     return children != null && children.length > 0;
   }
@@ -194,3 +234,5 @@ String _elementText(n) {
 
   return DOM.getText(n);
 }
+
+TestInjector getTestInjector() => _testInjector;

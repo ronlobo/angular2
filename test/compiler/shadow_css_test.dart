@@ -1,20 +1,20 @@
 @TestOn('browser')
 library angular2.test.compiler.shadow_css_test;
 
-import "package:angular2/testing_internal.dart";
 import "package:angular2/src/compiler/shadow_css.dart"
     show ShadowCss, processRules, CssRule;
-import "package:angular2/src/facade/lang.dart" show StringWrapper;
+import "package:angular2/testing_internal.dart";
 import 'package:test/test.dart';
 
-main() {
+void main() {
   group("ShadowCss", () {
-    s(String css, String contentAttr, [String hostAttr = ""]) {
+    String s(String css, String contentAttr, [String hostAttr = ""]) {
       var shadowCss = new ShadowCss();
       var shim = shadowCss.shimCssText(css, contentAttr, hostAttr);
       var nlRegexp = new RegExp(r'\n');
-      return normalizeCSS(StringWrapper.replaceAll(shim, nlRegexp, ""));
+      return normalizeCSS(shim.replaceAll(nlRegexp, ""));
     }
+
     test("should handle empty string", () {
       expect(s("", "a"), "");
     });
@@ -103,20 +103,18 @@ main() {
     test("should support polyfill-unscoped-rule", () {
       var css = s(
           "polyfill-unscoped-rule {content: '#menu > .bar';color: blue;}", "a");
-      expect(
-          StringWrapper.contains(css, "#menu > .bar {;color:blue;}"), isTrue);
+      expect(css.contains("#menu > .bar {;color:blue;}"), isTrue);
       css = s("polyfill-unscoped-rule {content: \"#menu > .bar\";color: blue;}",
           "a");
-      expect(
-          StringWrapper.contains(css, "#menu > .bar {;color:blue;}"), isTrue);
+      expect(css.contains("#menu > .bar {;color:blue;}"), isTrue);
     });
     test("should support multiple instances polyfill-unscoped-rule", () {
       var css = s(
           "polyfill-unscoped-rule {content: 'foo';color: blue;}" +
               "polyfill-unscoped-rule {content: 'bar';color: blue;}",
           "a");
-      expect(StringWrapper.contains(css, "foo {;color:blue;}"), isTrue);
-      expect(StringWrapper.contains(css, "bar {;color:blue;}"), isTrue);
+      expect(css.contains("foo {;color:blue;}"), isTrue);
+      expect(css.contains("bar {;color:blue;}"), isTrue);
     });
     test("should support polyfill-rule", () {
       var css = s("polyfill-rule {content: ':host.foo .bar';color: blue;}", "a",
@@ -167,13 +165,14 @@ main() {
   group("processRules", () {
     group("parse rules", () {
       List<CssRule> captureRules(String input) {
-        var result = [];
+        var result = <CssRule>[];
         processRules(input, (cssRule) {
           result.add(cssRule);
           return cssRule;
         });
         return result;
       }
+
       test("should work with empty css", () {
         expect(captureRules(""), []);
       });

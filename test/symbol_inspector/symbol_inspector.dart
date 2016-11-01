@@ -1,12 +1,24 @@
 library angular.symbol_inspector.symbol_inspector;
 
 import 'dart:mirrors';
+
 import 'package:angular2/common.dart' as ng2common;
 import 'package:angular2/compiler.dart' as ng2compiler;
 import 'package:angular2/core.dart' as ng2core;
 import 'package:angular2/instrumentation.dart' as ng2instrumentation;
 import 'package:angular2/platform/browser.dart' as ng2platform_browser;
 import 'package:angular2/platform/common.dart' as ng2platform_common;
+import 'package:angular2/platform/testing/browser.dart'
+    as ng2platform_browser_testing;
+
+final commonLib = getLibrary('package:angular2/common.dart');
+final compilerLib = getLibrary('package:angular2/compiler.dart');
+final coreLib = getLibrary('package:angular2/core.dart');
+final instrumentationLib = getLibrary('package:angular2/instrumentation.dart');
+final platformBrowserLib = getLibrary('package:angular2/platform/browser.dart');
+final platformBrowserTestingLib =
+    getLibrary('package:angular2/platform/testing/browser.dart');
+final platformCommonLib = getLibrary('package:angular2/platform/common.dart');
 
 const IGNORE = const {
   'runtimeType': true,
@@ -25,12 +37,13 @@ final _ng2libSymbols = [
   ng2common.NgIf,
   ng2instrumentation.wtfCreateScope,
   ng2platform_browser.Title,
+  ng2platform_browser_testing.TEST_BROWSER_PLATFORM_PROVIDERS,
   ng2platform_common.Location,
 ];
 
 LibraryMirror getLibrary(String uri) {
   // HACK: this is here only to make _ng2libSymbols used.
-  _ng2libSymbols.forEach((_) { });
+  _ng2libSymbols.forEach((_) {});
   var lib = currentMirrorSystem().libraries[Uri.parse(uri)];
   if (lib == null) {
     throw 'Failed to load library ${uri}';
@@ -38,15 +51,8 @@ LibraryMirror getLibrary(String uri) {
   return lib;
 }
 
-final commonLib = getLibrary('package:angular2/common.dart');
-final compilerLib = getLibrary('package:angular2/compiler.dart');
-final coreLib = getLibrary('package:angular2/core.dart');
-final instrumentationLib = getLibrary('package:angular2/instrumentation.dart');
-final platformBrowserLib = getLibrary('package:angular2/platform/browser.dart');
-final platformCommonLib = getLibrary('package:angular2/platform/common.dart');
-
 List<String> getSymbolsFromLibrary(LibraryMirror lib) {
-  var names = [];
+  var names = <String>[];
   extractSymbols(lib).addTo(names);
   names.sort();
   // remove duplicates;
@@ -66,7 +72,7 @@ class ExportedSymbol {
 
   ExportedSymbol(this.symbol, this.declaration, this.library);
 
-  addTo(List<String> names) {
+  void addTo(List<String> names) {
     var name = unwrapSymbol(symbol);
     if (declaration is MethodMirror) {
       names.add(name);
@@ -83,7 +89,7 @@ class ExportedSymbol {
     }
   }
 
-  toString() => unwrapSymbol(symbol);
+  String toString() => unwrapSymbol(symbol);
 }
 
 class LibraryInfo {
@@ -92,7 +98,7 @@ class LibraryInfo {
 
   LibraryInfo(this.names, this.symbolsUsedForName);
 
-  addTo(List<String> names) {
+  void addTo(List<String> names) {
     this.names.forEach((ExportedSymbol es) => es.addTo(names));
     //this.names.addAll(symbolsUsedForName.keys.map(unwrapSymbol));
   }
@@ -107,7 +113,7 @@ Iterable<Symbol> _getUsedSymbols(
 
   path = "$path -> $decl";
 
-  var used = [];
+  var used = <Symbol>[];
 
   if (decl is TypedefMirror) {
     TypedefMirror tddecl = decl;
@@ -184,12 +190,12 @@ LibraryInfo extractSymbols(LibraryMirror lib, [String printPrefix = ""]) {
 
     // I don't think you can show and hide from the same library
     assert(showSymbols.isEmpty || hideSymbols.isEmpty);
-    if (!showSymbols.isEmpty) {
+    if (showSymbols.isNotEmpty) {
       childNames = childNames.where((symAndLib) {
         return showSymbols.contains(symAndLib.symbol);
       });
     }
-    if (!hideSymbols.isEmpty) {
+    if (hideSymbols.isNotEmpty) {
       childNames = childNames.where((symAndLib) {
         return !hideSymbols.contains(symAndLib.symbol);
       });
@@ -201,5 +207,5 @@ LibraryInfo extractSymbols(LibraryMirror lib, [String printPrefix = ""]) {
   return new LibraryInfo(exportedSymbols, used);
 }
 
-var _SYMBOL_NAME = new RegExp('"(.*)"');
-unwrapSymbol(sym) => _SYMBOL_NAME.firstMatch(sym.toString()).group(1);
+final _SYMBOL_NAME = new RegExp('"(.*)"');
+String unwrapSymbol(sym) => _SYMBOL_NAME.firstMatch(sym.toString()).group(1);

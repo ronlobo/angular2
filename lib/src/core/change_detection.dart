@@ -1,8 +1,4 @@
-/**
- * 
- * 
- * Change detection enables data binding in Angular.
- */
+/// Change detection enables data binding in Angular.
 
 export "change_detection/change_detection.dart"
     show
@@ -20,3 +16,4 @@ export "change_detection/change_detection.dart"
         KeyValueDifferFactory,
         CollectionChangeRecord,
         TrackByFn;
+export "change_detection/component_state.dart";

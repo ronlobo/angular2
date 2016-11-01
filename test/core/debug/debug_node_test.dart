@@ -1,14 +1,13 @@
-@TestOn('browser')
+@TestOn('browser && !js')
 library angular2.test.core.debug.debug_node_test;
 
-import "package:angular2/testing_internal.dart";
-import "package:angular2/src/platform/dom/dom_adapter.dart" show DOM;
-import "package:angular2/src/facade/async.dart" show EventEmitter;
-import "package:angular2/core.dart" show Injectable;
 import "package:angular2/common.dart" show NgFor, NgIf;
-import "package:angular2/platform/common_dom.dart" show By;
+import "package:angular2/core.dart" show Injectable;
 import "package:angular2/src/core/metadata.dart"
     show Directive, Component, Input;
+import "package:angular2/src/facade/async.dart" show EventEmitter;
+import "package:angular2/src/platform/dom/dom_adapter.dart" show DOM;
+import "package:angular2/testing_internal.dart";
 import 'package:test/test.dart';
 
 @Injectable()
@@ -17,7 +16,7 @@ class Logger {
   Logger() {
     this.log = [];
   }
-  add(String thing) {
+  void add(String thing) {
     this.log.add(thing);
   }
 }
@@ -106,11 +105,11 @@ class EventsComp {
     this.clicked = false;
     this.customed = false;
   }
-  handleClick() {
+  void handleClick() {
     this.clicked = true;
   }
 
-  handleCustom() {
+  void handleCustom() {
     this.customed = true;
   }
 }
@@ -191,7 +190,7 @@ class BankAccount {
     directives: const [BankAccount])
 class TestApp {}
 
-main() {
+void main() {
   group("debug element", () {
     test("should list all child nodes", () async {
       return inject([TestComponentBuilder, AsyncTestCompleter],
@@ -210,7 +209,7 @@ main() {
         tcb.createAsync(ParentComp2).then((fixture) {
           fixture.detectChanges();
           // The root component has 3 elements and no text node children.
-          expect(fixture.debugElement.childNodes.length, 5);
+          expect(fixture.debugElement.childNodes.length, 3);
           completer.done();
         });
       });

@@ -1,29 +1,22 @@
-import "package:angular2/src/facade/collection.dart" show StringMapWrapper;
 import "package:angular2/src/facade/exceptions.dart" show BaseException;
-import "package:angular2/src/facade/lang.dart"
-    show RegExpWrapper, StringWrapper, isPresent, isBlank;
 
 import "../../url_parser.dart" show Url, RootUrl, convertUrlParamsToArray;
 import "../../utils.dart" show TouchMap, normalizeString;
 import "route_path.dart" show RoutePath, GeneratedUrl, MatchedUrl;
 
-/**
- * `ParamRoutePath`s are made up of `PathSegment`s, each of which can
- * match a segment of a URL. Different kind of `PathSegment`s match
- * URL segments in different ways...
- */
+/// `ParamRoutePath`s are made up of `PathSegment`s, each of which can
+/// match a segment of a URL. Different kind of `PathSegment`s match
+/// URL segments in different ways...
 abstract class PathSegment {
-  String name;
+  String get name;
   String generate(TouchMap params);
   bool match(String path);
   String specificity;
   String hash;
 }
 
-/**
- * Identified by a `...` URL segment. This indicates that the
- * Route will continue to be matched by child `Router`s.
- */
+/// Identified by a `...` URL segment. This indicates that the
+/// Route will continue to be matched by child `Router`s.
 class ContinuationPathSegment implements PathSegment {
   String name = "";
   var specificity = "";
@@ -37,10 +30,8 @@ class ContinuationPathSegment implements PathSegment {
   }
 }
 
-/**
- * Identified by a string not starting with a `:` or `*`.
- * Only matches the URL segments that equal the segment path
- */
+/// Identified by a string not starting with a `:` or `*`.
+/// Only matches the URL segments that equal the segment path
 class StaticPathSegment implements PathSegment {
   String path;
   String name = "";
@@ -58,41 +49,37 @@ class StaticPathSegment implements PathSegment {
   }
 }
 
-/**
- * Identified by a string starting with `:`. Indicates a segment
- * that can contain a value that will be extracted and provided to
- * a matching `Instruction`.
- */
+/// Identified by a string starting with `:`. Indicates a segment
+/// that can contain a value that will be extracted and provided to
+/// a matching `Instruction`.
 class DynamicPathSegment implements PathSegment {
-  String name;
+  final String name;
   static var paramMatcher = new RegExp(r'^:([^\/]+)$');
   var specificity = "1";
   var hash = ":";
-  DynamicPathSegment(this.name) {}
+  DynamicPathSegment(this.name);
   bool match(String path) {
     return path.length > 0;
   }
 
   String generate(TouchMap params) {
-    if (!StringMapWrapper.contains(params.map, this.name)) {
+    if (!params.map.containsKey(name)) {
       throw new BaseException(
-          '''Route generator for \'${ this . name}\' was not included in parameters passed.''');
+          '''Route generator for \'${name}\' was not included in parameters passed.''');
     }
-    return encodeDynamicSegment(normalizeString(params.get(this.name)));
+    return encodeDynamicSegment(normalizeString(params.get(name)));
   }
 }
 
-/**
- * Identified by a string starting with `*` Indicates that all the following
- * segments match this route and that the value of these segments should
- * be provided to a matching `Instruction`.
- */
+/// Identified by a string starting with `*` Indicates that all the following
+/// segments match this route and that the value of these segments should
+/// be provided to a matching `Instruction`.
 class StarPathSegment implements PathSegment {
-  String name;
+  final String name;
   static var wildcardMatcher = new RegExp(r'^\*([^\/]+)$');
   var specificity = "0";
   var hash = "*";
-  StarPathSegment(this.name) {}
+  StarPathSegment(this.name);
   bool match(String path) {
     return true;
   }
@@ -102,18 +89,15 @@ class StarPathSegment implements PathSegment {
   }
 }
 
-/**
- * Parses a URL string using a given matcher DSL, and generates URLs from param maps
- */
+/// Parses a URL string using a given matcher DSL, and generates URLs from param maps
 class ParamRoutePath implements RoutePath {
   String routePath;
   String specificity;
   bool terminal = true;
   String hash;
   List<PathSegment> _segments;
-  /**
-   * Takes a string representing the matcher DSL
-   */
+
+  /// Takes a string representing the matcher DSL
   ParamRoutePath(this.routePath) {
     this._assertValidPath(routePath);
     this._parsePathString(routePath);
@@ -133,7 +117,7 @@ class ParamRoutePath implements RoutePath {
       if (pathSegment is ContinuationPathSegment) {
         break;
       }
-      if (isPresent(currentUrlSegment)) {
+      if (currentUrlSegment != null) {
         // the star segment consumes all of the remaining URL, including matrix params
         if (pathSegment is StarPathSegment) {
           positionalParams[pathSegment.name] = currentUrlSegment.toString();
@@ -153,19 +137,19 @@ class ParamRoutePath implements RoutePath {
         return null;
       }
     }
-    if (this.terminal && isPresent(nextUrlSegment)) {
+    if (this.terminal && nextUrlSegment != null) {
       return null;
     }
     var urlPath = captured.join("/");
     var auxiliary = <Url>[];
     var urlParams = <String>[];
     var allParams = positionalParams;
-    if (isPresent(currentUrlSegment)) {
+    if (currentUrlSegment != null) {
       // If this is the root component, read query params. Otherwise, read matrix params.
       var paramsSegment = url is RootUrl ? url : currentUrlSegment;
-      if (isPresent(paramsSegment.params)) {
-        allParams =
-            StringMapWrapper.merge(paramsSegment.params, positionalParams);
+      if (paramsSegment.params != null) {
+        allParams = new Map<String, dynamic>.from(paramsSegment.params)
+          ..addAll(positionalParams);
         urlParams = convertUrlParamsToArray(paramsSegment.params);
       } else {
         allParams = positionalParams;
@@ -183,7 +167,7 @@ class ParamRoutePath implements RoutePath {
       var segment = this._segments[i];
       if (!(segment is ContinuationPathSegment)) {
         var generated = segment.generate(paramTokens);
-        if (isPresent(generated) || !(segment is StarPathSegment)) {
+        if (generated != null || !(segment is StarPathSegment)) {
           path.add(generated);
         }
       }
@@ -198,7 +182,7 @@ class ParamRoutePath implements RoutePath {
     return this.routePath;
   }
 
-  _parsePathString(String routePath) {
+  void _parsePathString(String routePath) {
     // normalize route as not starting with a "/". Recognition will
 
     // also normalize.
@@ -210,11 +194,12 @@ class ParamRoutePath implements RoutePath {
     var limit = segmentStrings.length - 1;
     for (var i = 0; i <= limit; i++) {
       var segment = segmentStrings[i], match;
-      if (isPresent(match =
-          RegExpWrapper.firstMatch(DynamicPathSegment.paramMatcher, segment))) {
+      if ((match = DynamicPathSegment.paramMatcher.firstMatch(segment)) !=
+          null) {
         this._segments.add(new DynamicPathSegment(match[1]));
-      } else if (isPresent(match =
-          RegExpWrapper.firstMatch(StarPathSegment.wildcardMatcher, segment))) {
+      } else if ((match =
+              StarPathSegment.wildcardMatcher.firstMatch(segment)) !=
+          null) {
         this._segments.add(new StarPathSegment(match[1]));
       } else if (segment == "...") {
         if (i < limit) {
@@ -275,36 +260,35 @@ class ParamRoutePath implements RoutePath {
     return hashParts.join("/");
   }
 
-  _assertValidPath(String path) {
-    if (StringWrapper.contains(path, "#")) {
+  void _assertValidPath(String path) {
+    if (path.contains("#")) {
       throw new BaseException(
           '''Path "${ path}" should not include "#". Use "HashLocationStrategy" instead.''');
     }
-    var illegalCharacter =
-        RegExpWrapper.firstMatch(ParamRoutePath.RESERVED_CHARS, path);
-    if (isPresent(illegalCharacter)) {
+    var illegalCharacter = ParamRoutePath.RESERVED_CHARS.firstMatch(path);
+    if (illegalCharacter != null) {
       throw new BaseException(
           '''Path "${ path}" contains "${ illegalCharacter [ 0 ]}" which is not allowed in a route config.''');
     }
   }
 
-  static var RESERVED_CHARS = RegExpWrapper.create("//|\\(|\\)|;|\\?|=");
+  static final RESERVED_CHARS = new RegExp("//|\\(|\\)|;|\\?|=");
 }
 
-var REGEXP_PERCENT = new RegExp(r'%');
-var REGEXP_SLASH = new RegExp(r'\/');
-var REGEXP_OPEN_PARENT = new RegExp(r'\(');
-var REGEXP_CLOSE_PARENT = new RegExp(r'\)');
-var REGEXP_SEMICOLON = new RegExp(r';');
+final RegExp REGEXP_PERCENT = new RegExp(r'%');
+final RegExp REGEXP_SLASH = new RegExp(r'\/');
+final RegExp REGEXP_OPEN_PARENT = new RegExp(r'\(');
+final RegExp REGEXP_CLOSE_PARENT = new RegExp(r'\)');
+final RegExp REGEXP_SEMICOLON = new RegExp(r';');
 String encodeDynamicSegment(String value) {
-  if (isBlank(value)) {
+  if (value == null) {
     return null;
   }
-  value = StringWrapper.replaceAll(value, REGEXP_PERCENT, "%25");
-  value = StringWrapper.replaceAll(value, REGEXP_SLASH, "%2F");
-  value = StringWrapper.replaceAll(value, REGEXP_OPEN_PARENT, "%28");
-  value = StringWrapper.replaceAll(value, REGEXP_CLOSE_PARENT, "%29");
-  value = StringWrapper.replaceAll(value, REGEXP_SEMICOLON, "%3B");
+  value = value.replaceAll(REGEXP_PERCENT, "%25");
+  value = value.replaceAll(REGEXP_SLASH, "%2F");
+  value = value.replaceAll(REGEXP_OPEN_PARENT, "%28");
+  value = value.replaceAll(REGEXP_CLOSE_PARENT, "%29");
+  value = value.replaceAll(REGEXP_SEMICOLON, "%3B");
   return value;
 }
 
@@ -314,13 +298,13 @@ var REGEXP_ENC_OPEN_PARENT = new RegExp(r'%28', caseSensitive: false);
 var REGEXP_ENC_SLASH = new RegExp(r'%2F', caseSensitive: false);
 var REGEXP_ENC_PERCENT = new RegExp(r'%25', caseSensitive: false);
 String decodeDynamicSegment(String value) {
-  if (isBlank(value)) {
+  if (value == null) {
     return null;
   }
-  value = StringWrapper.replaceAll(value, REGEXP_ENC_SEMICOLON, ";");
-  value = StringWrapper.replaceAll(value, REGEXP_ENC_CLOSE_PARENT, ")");
-  value = StringWrapper.replaceAll(value, REGEXP_ENC_OPEN_PARENT, "(");
-  value = StringWrapper.replaceAll(value, REGEXP_ENC_SLASH, "/");
-  value = StringWrapper.replaceAll(value, REGEXP_ENC_PERCENT, "%");
+  value = value.replaceAll(REGEXP_ENC_SEMICOLON, ";");
+  value = value.replaceAll(REGEXP_ENC_CLOSE_PARENT, ")");
+  value = value.replaceAll(REGEXP_ENC_OPEN_PARENT, "(");
+  value = value.replaceAll(REGEXP_ENC_SLASH, "/");
+  value = value.replaceAll(REGEXP_ENC_PERCENT, "%");
   return value;
 }

@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:analyzer/analyzer.dart';
-import 'package:analyzer/src/generated/ast.dart';
+import 'package:analyzer/dart/ast/ast.dart';
 import 'package:angular2/src/transform/common/asset_reader.dart';
 import 'package:angular2/src/transform/common/async_string_writer.dart';
 import 'package:angular2/src/transform/common/logging.dart';
@@ -55,7 +55,8 @@ Future<String> _getAllDeclarations(AssetReader reader, AssetId assetId,
     var uri = stringLiteralToString(partDirective.uri);
     var partAssetId =
         fromUri(createOfflineCompileUrlResolver().resolve(assetUri, uri));
-    asyncWriter.asyncPrint(reader.readAsString(partAssetId).then((partCode) {
+    asyncWriter.asyncPrint(
+        reader.readAsString(partAssetId).then/*<String>*/((partCode) {
       if (partCode == null || partCode.isEmpty) {
         log.warning('Empty part at "${partDirective.uri}. Ignoring.',
             asset: partAssetId);

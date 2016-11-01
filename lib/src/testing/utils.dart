@@ -1,19 +1,17 @@
-import "package:angular2/core.dart" show Injectable;
-import "package:angular2/src/facade/lang.dart"
-    show isPresent, isString, RegExpWrapper, StringWrapper, RegExp;
+import "package:angular2/di.dart" show Injectable;
 import "package:angular2/src/platform/dom/dom_adapter.dart" show DOM;
+
+typedef void LogFunction([a, b, c, d, e]);
 
 @Injectable()
 class Log {
-  List<dynamic> logItems;
-  Log() {
-    this.logItems = [];
-  }
+  final List logItems = new List();
+
   void add(value) {
     this.logItems.add(value);
   }
 
-  fn(value) {
+  LogFunction fn(value) {
     return (
         [dynamic a1 = null,
         dynamic a2 = null,
@@ -25,24 +23,22 @@ class Log {
   }
 
   void clear() {
-    this.logItems = [];
+    this.logItems.clear();
   }
 
-  String result() {
-    return this.logItems.join("; ");
-  }
+  String result() => this.logItems.join("; ");
 }
 
-BrowserDetection browserDetection = null;
+BrowserDetection browserDetection;
 
 class BrowserDetection {
   String _ua;
-  static setup() {
+  static void setup() {
     browserDetection = new BrowserDetection(null);
   }
 
   BrowserDetection(String ua) {
-    _ua = ua ?? (isPresent(DOM) ? DOM.getUserAgent() : '');
+    _ua = ua ?? (DOM != null ? DOM.getUserAgent() : '');
   }
   bool get isFirefox => _ua.indexOf("Firefox") > -1;
 
@@ -99,11 +95,10 @@ var _RE_SPECIAL_CHARS = [
   "\$",
   "|"
 ];
-var _ESCAPE_RE =
-    RegExpWrapper.create('''[\\${ _RE_SPECIAL_CHARS . join ( "\\" )}]''');
+final _ESCAPE_RE = new RegExp('''[\\${ _RE_SPECIAL_CHARS . join ( "\\" )}]''');
 RegExp containsRegexp(String input) {
-  return RegExpWrapper.create(StringWrapper.replaceAllMapped(
-      input, _ESCAPE_RE, (match) => '''\\${ match [ 0 ]}'''));
+  return new RegExp(
+      input.replaceAllMapped(_ESCAPE_RE, (match) => '''\\${ match [ 0 ]}'''));
 }
 
 RegExp _normalizerExp1,
@@ -120,14 +115,14 @@ String normalizeCSS(String css) {
   _normalizerExp4 ??= new RegExp(' }');
   _normalizerExp5 ??= new RegExp(r'url\((\"|\s)(.+)(\"|\s)\)(\s*)');
   _normalizerExp6 ??= new RegExp(r'\[(.+)=([^"\]]+)\]');
-  css = StringWrapper.replaceAll(css, _normalizerExp1, " ");
-  css = StringWrapper.replaceAll(css, _normalizerExp2, ":");
-  css = StringWrapper.replaceAll(css, _normalizerExp3, "\"");
-  css = StringWrapper.replaceAll(css, _normalizerExp4, "}");
-  css = StringWrapper.replaceAllMapped(
-      css, _normalizerExp5, (match) => '''url("${ match [ 2 ]}")''');
-  css = StringWrapper.replaceAllMapped(css, _normalizerExp6,
-      (match) => '''[${ match [ 1 ]}="${ match [ 2 ]}"]''');
+  css = css.replaceAll(_normalizerExp1, " ");
+  css = css.replaceAll(_normalizerExp2, ":");
+  css = css.replaceAll(_normalizerExp3, "\"");
+  css = css.replaceAll(_normalizerExp4, "}");
+  css = css.replaceAllMapped(
+      _normalizerExp5, (match) => '''url("${ match [ 2 ]}")''');
+  css = css.replaceAllMapped(
+      _normalizerExp6, (match) => '''[${ match [ 1 ]}="${ match [ 2 ]}"]''');
   return css;
 }
 
@@ -146,7 +141,7 @@ String stringifyElement(el) {
     for (var i = 0; i < keys.length; i++) {
       var key = keys[i];
       var attValue = attributeMap[key];
-      if (!isString(attValue)) {
+      if (attValue is! String) {
         result += ''' ${ key}''';
       } else {
         result += ''' ${ key}="${ attValue}"''';
@@ -155,7 +150,7 @@ String stringifyElement(el) {
     result += ">";
     // Children
     var childrenRoot = DOM.templateAwareRoot(el);
-    var children = isPresent(childrenRoot) ? DOM.childNodes(childrenRoot) : [];
+    var children = childrenRoot != null ? DOM.childNodes(childrenRoot) : [];
     for (var j = 0; j < children.length; j++) {
       result += stringifyElement(children[j]);
     }

@@ -1,9 +1,7 @@
-@TestOn('browser')
+@TestOn('browser && !js')
 library angular2.test.core.linker.projection_integration_test;
 
-import "package:angular2/testing_internal.dart";
-import "package:angular2/src/platform/dom/dom_adapter.dart" show DOM;
-import "package:angular2/core.dart"
+import 'package:angular2/core.dart'
     show
         Component,
         Directive,
@@ -11,38 +9,40 @@ import "package:angular2/core.dart"
         TemplateRef,
         ViewContainerRef,
         ViewEncapsulation,
-        ViewMetadata;
-import "package:angular2/platform/common_dom.dart" show By;
-import "package:angular2/src/core/debug/debug_node.dart" show getAllDebugNodes;
+        View;
+import 'package:angular2/src/debug/debug_node.dart' show getAllDebugNodes;
+import 'package:angular2/src/platform/dom/dom_adapter.dart' show DOM;
+import 'package:angular2/src/testing/by.dart';
+import 'package:angular2/testing_internal.dart';
 import 'package:test/test.dart';
 
-main() {
-  group("projection", () {
-    test("should support simple components", () async {
+void main() {
+  group('projection', () {
+    test('should support simple components', () async {
       return inject([TestComponentBuilder, AsyncTestCompleter],
           (TestComponentBuilder tcb, AsyncTestCompleter completer) {
         tcb
             .overrideView(
                 MainComp,
-                new ViewMetadata(
-                    template: "<simple>" + "<div>A</div>" + "</simple>",
+                new View(
+                    template: '<simple>' + '<div>A</div>' + '</simple>',
                     directives: [Simple]))
             .createAsync(MainComp)
             .then((main) {
-          expect(main.debugElement.nativeElement, hasTextContent("SIMPLE(A)"));
+          expect(main.debugElement.nativeElement, hasTextContent('SIMPLE(A)'));
           completer.done();
         });
       });
     });
     test(
-        "should support simple components with text interpolation as direct children",
-        () async {
+        'should support simple components with text interpolation as '
+        'direct children', () async {
       return inject([TestComponentBuilder, AsyncTestCompleter],
           (TestComponentBuilder tcb, AsyncTestCompleter completer) {
         tcb
             .overrideView(
                 MainComp,
-                new ViewMetadata(
+                new View(
                     template: "{{'START('}}<simple>" +
                         "{{text}}" +
                         "</simple>{{')END'}}",
@@ -64,12 +64,12 @@ main() {
         tcb
             .overrideView(
                 Simple,
-                new ViewMetadata(
+                new View(
                     template: "SIMPLE(<div><ng-content></ng-content></div>)",
                     directives: []))
             .overrideView(
                 MainComp,
-                new ViewMetadata(
+                new View(
                     template: "<simple>{{text}}</simple>",
                     directives: [Simple]))
             .createAsync(MainComp)
@@ -89,13 +89,13 @@ main() {
         tcb
             .overrideView(
                 Simple,
-                new ViewMetadata(
+                new View(
                     template:
                         "SIMPLE(<div><ng-content></ng-content></div><div [tabIndex]=\"0\">EL</div>)",
                     directives: []))
             .overrideView(
                 MainComp,
-                new ViewMetadata(
+                new View(
                     template: "<simple>{{text}}</simple>",
                     directives: [Simple]))
             .createAsync(MainComp)
@@ -114,14 +114,14 @@ main() {
         tcb
             .overrideView(
                 Simple,
-                new ViewMetadata(
+                new View(
                     template: "SIMPLE({{0}}|<ng-content></ng-content>|{{2}})",
                     directives: []))
             .overrideView(
-                OtherComp, new ViewMetadata(template: "{{1}}", directives: []))
+                OtherComp, new View(template: "{{1}}", directives: []))
             .overrideView(
                 MainComp,
-                new ViewMetadata(
+                new View(
                     template: "<simple><other></other></simple>",
                     directives: [Simple, OtherComp]))
             .createAsync(MainComp)
@@ -138,10 +138,8 @@ main() {
       return inject([TestComponentBuilder, AsyncTestCompleter],
           (TestComponentBuilder tcb, AsyncTestCompleter completer) {
         tcb
-            .overrideView(
-                MainComp,
-                new ViewMetadata(
-                    template: "<empty>A</empty>", directives: [Empty]))
+            .overrideView(MainComp,
+                new View(template: "<empty>A</empty>", directives: [Empty]))
             .createAsync(MainComp)
             .then((main) {
           expect(main.debugElement.nativeElement, hasTextContent(""));
@@ -155,7 +153,7 @@ main() {
         tcb
             .overrideView(
                 MainComp,
-                new ViewMetadata(
+                new View(
                     template: "<multiple-content-tags>" +
                         "<div>B</div>" +
                         "<div>C</div>" +
@@ -175,7 +173,7 @@ main() {
         tcb
             .overrideView(
                 MainComp,
-                new ViewMetadata(
+                new View(
                     template: "<multiple-content-tags>" +
                         "<div>B<div class=\"left\">A</div></div>" +
                         "<div>C</div>" +
@@ -196,7 +194,7 @@ main() {
         tcb
             .overrideView(
                 MainComp,
-                new ViewMetadata(
+                new View(
                     template: "<multiple-content-tags>" +
                         "<template manual class=\"left\"><div>A1</div></template>" +
                         "<div>B</div>" +
@@ -208,7 +206,7 @@ main() {
             .createAsync(MainComp)
             .then((main) {
           var viewportDirectives = main.debugElement.children[0].childNodes
-              .where(By.directive(ManualViewportDirective))
+              .where(By.nodeDirective(ManualViewportDirective))
               .toList()
               .map((de) => de.inject(ManualViewportDirective))
               .toList();
@@ -227,7 +225,7 @@ main() {
         tcb
             .overrideView(
                 MainComp,
-                new ViewMetadata(
+                new View(
                     template: "<outer-with-indirect-nested>" +
                         "<div>A</div>" +
                         "<div>B</div>" +
@@ -242,14 +240,14 @@ main() {
       });
     });
     test(
-        "should support nesting with content being direct child of a nested component",
-        () async {
+        "should support nesting with content being direct child of a nested "
+        "component", () async {
       return inject([TestComponentBuilder, AsyncTestCompleter],
           (TestComponentBuilder tcb, AsyncTestCompleter completer) {
         tcb
             .overrideView(
                 MainComp,
-                new ViewMetadata(
+                new View(
                     template: "<outer>" +
                         "<template manual class=\"left\"><div>A</div></template>" +
                         "<div>B</div>" +
@@ -259,7 +257,7 @@ main() {
             .createAsync(MainComp)
             .then((main) {
           var viewportDirective = main.debugElement
-              .queryAllNodes(By.directive(ManualViewportDirective))[0]
+              .queryAllNodes(By.nodeDirective(ManualViewportDirective))[0]
               .inject(ManualViewportDirective);
           expect(main.debugElement.nativeElement,
               hasTextContent("OUTER(INNER(INNERINNER(,BC)))"));
@@ -276,7 +274,7 @@ main() {
         tcb
             .overrideView(
                 MainComp,
-                new ViewMetadata(
+                new View(
                     template: "<conditional-content>" +
                         "<div class=\"left\">A</div>" +
                         "<div>B</div>" +
@@ -286,7 +284,7 @@ main() {
             .createAsync(MainComp)
             .then((main) {
           var viewportDirective = main.debugElement
-              .queryAllNodes(By.directive(ManualViewportDirective))[0]
+              .queryAllNodes(By.nodeDirective(ManualViewportDirective))[0]
               .inject(ManualViewportDirective);
           expect(main.debugElement.nativeElement, hasTextContent("(, BC)"));
           viewportDirective.show();
@@ -306,7 +304,7 @@ main() {
         tcb
             .overrideView(
                 MainComp,
-                new ViewMetadata(
+                new View(
                     template: "<simple stringProp=\"text\"></simple>",
                     directives: [Simple]))
             .overrideTemplate(
@@ -327,7 +325,7 @@ main() {
         tcb
             .overrideView(
                 MainComp,
-                new ViewMetadata(
+                new View(
                     template: "<simple stringProp=\"text\"></simple>",
                     directives: [Simple]))
             .overrideTemplate(Simple, "<style></style><p>P,</p>{{stringProp}}")
@@ -345,7 +343,7 @@ main() {
         tcb
             .overrideView(
                 MainComp,
-                new ViewMetadata(
+                new View(
                     template: "<empty>" +
                         "  <template manual><div>A</div></template>" +
                         "</empty>" +
@@ -368,7 +366,7 @@ main() {
             }
           });
           ProjectDirective projectDirective = main.debugElement
-              .queryAllNodes(By.directive(ProjectDirective))[0]
+              .queryAllNodes(By.nodeDirective(ProjectDirective))[0]
               .inject(ProjectDirective);
           expect(main.debugElement.nativeElement, hasTextContent("START()END"));
           projectDirective.show(sourceDirective.templateRef);
@@ -384,7 +382,7 @@ main() {
         tcb
             .overrideView(
                 MainComp,
-                new ViewMetadata(
+                new View(
                     template:
                         "<simple><template manual><div>A</div></template></simple>" +
                             "START(<div project></div>)END",
@@ -396,10 +394,10 @@ main() {
             .createAsync(MainComp)
             .then((main) {
           ManualViewportDirective sourceDirective = main.debugElement
-              .queryAllNodes(By.directive(ManualViewportDirective))[0]
+              .queryAllNodes(By.nodeDirective(ManualViewportDirective))[0]
               .inject(ManualViewportDirective);
           ProjectDirective projectDirective = main.debugElement
-              .queryAllNodes(By.directive(ProjectDirective))[0]
+              .queryAllNodes(By.nodeDirective(ProjectDirective))[0]
               .inject(ProjectDirective);
           expect(main.debugElement.nativeElement,
               hasTextContent("SIMPLE()START()END"));
@@ -416,7 +414,7 @@ main() {
         tcb
             .overrideView(
                 MainComp,
-                new ViewMetadata(
+                new View(
                     template: "<conditional-content>" +
                         "<div class=\"left\">A</div>" +
                         "<div>B</div>" +
@@ -430,10 +428,10 @@ main() {
             .createAsync(MainComp)
             .then((main) {
           ManualViewportDirective sourceDirective = main.debugElement
-              .queryAllNodes(By.directive(ManualViewportDirective))[0]
+              .queryAllNodes(By.nodeDirective(ManualViewportDirective))[0]
               .inject(ManualViewportDirective);
           ProjectDirective projectDirective = main.debugElement
-              .queryAllNodes(By.directive(ProjectDirective))[0]
+              .queryAllNodes(By.nodeDirective(ProjectDirective))[0]
               .inject(ProjectDirective);
           expect(main.debugElement.nativeElement,
               hasTextContent("(, B)START()END"));
@@ -459,12 +457,12 @@ main() {
           (TestComponentBuilder tcb, AsyncTestCompleter completer) {
         tcb
             .overrideView(MainComp,
-                new ViewMetadata(template: "<tree></tree>", directives: [Tree]))
+                new View(template: "<tree></tree>", directives: [Tree]))
             .createAsync(MainComp)
             .then((main) {
           main.detectChanges();
           ManualViewportDirective manualDirective = main.debugElement
-              .queryAllNodes(By.directive(ManualViewportDirective))[0]
+              .queryAllNodes(By.nodeDirective(ManualViewportDirective))[0]
               .inject(ManualViewportDirective);
           expect(main.debugElement.nativeElement, hasTextContent("TREE(0:)"));
           manualDirective.show();
@@ -485,10 +483,10 @@ main() {
           (TestComponentBuilder tcb, AsyncTestCompleter completer) {
         tcb
             .overrideView(MainComp,
-                new ViewMetadata(template: "<tree></tree>", directives: [Tree]))
+                new View(template: "<tree></tree>", directives: [Tree]))
             .overrideView(
                 Tree,
-                new ViewMetadata(
+                new View(
                     template:
                         "TREE({{depth}}:<tree2 *manual [depth]=\"depth+1\"></tree2>)",
                     directives: [Tree2, ManualViewportDirective]))
@@ -498,7 +496,7 @@ main() {
           expect(main.debugElement.nativeElement, hasTextContent("TREE(0:)"));
           var tree = main.debugElement.query(By.directive(Tree));
           ManualViewportDirective manualDirective = tree
-              .queryAllNodes(By.directive(ManualViewportDirective))[0]
+              .queryAllNodes(By.nodeDirective(ManualViewportDirective))[0]
               .inject(ManualViewportDirective);
           manualDirective.show();
           main.detectChanges();
@@ -506,7 +504,7 @@ main() {
               hasTextContent("TREE(0:TREE2(1:))"));
           var tree2 = main.debugElement.query(By.directive(Tree2));
           manualDirective = tree2
-              .queryAllNodes(By.directive(ManualViewportDirective))[0]
+              .queryAllNodes(By.nodeDirective(ManualViewportDirective))[0]
               .inject(ManualViewportDirective);
           manualDirective.show();
           main.detectChanges();
@@ -522,7 +520,7 @@ main() {
         tcb
             .overrideView(
                 MainComp,
-                new ViewMetadata(
+                new View(
                     template: "<div class=\"redStyle\"></div>",
                     styles: [".redStyle { color: red}"],
                     encapsulation: ViewEncapsulation.None,
@@ -546,7 +544,7 @@ main() {
         tcb
             .overrideView(
                 MainComp,
-                new ViewMetadata(
+                new View(
                     template: "<div></div>",
                     styles: ["div { color: red}"],
                     encapsulation: ViewEncapsulation.Emulated))
@@ -569,19 +567,19 @@ main() {
         tcb
             .overrideView(
                 MainComp,
-                new ViewMetadata(
-                    template: '''<conditional-text>a</conditional-text>''',
+                new View(
+                    template: '<conditional-text>a</conditional-text>',
                     directives: [ConditionalTextComponent]))
             .createAsync(MainComp)
             .then((main) {
           expect(main.debugElement.nativeElement, hasTextContent("MAIN()"));
           var viewportElement = main.debugElement
-              .queryAllNodes(By.directive(ManualViewportDirective))[0];
+              .queryAllNodes(By.nodeDirective(ManualViewportDirective))[0];
           viewportElement.inject(ManualViewportDirective).show();
           expect(
               main.debugElement.nativeElement, hasTextContent("MAIN(FIRST())"));
           viewportElement = main.debugElement
-              .queryAllNodes(By.directive(ManualViewportDirective))[1];
+              .queryAllNodes(By.nodeDirective(ManualViewportDirective))[1];
           viewportElement.inject(ManualViewportDirective).show();
           expect(main.debugElement.nativeElement,
               hasTextContent("MAIN(FIRST(SECOND(a)))"));
@@ -596,7 +594,7 @@ main() {
         tcb
             .overrideView(
                 MainComp,
-                new ViewMetadata(
+                new View(
                     template: '''<cmp-a><cmp-b></cmp-b></cmp-a>''',
                     directives: [CmpA, CmpB]))
             .createAsync(MainComp)
@@ -616,7 +614,7 @@ main() {
         tcb
             .overrideView(
                 MainComp,
-                new ViewMetadata(
+                new View(
                     template: '''<cmp-a1></cmp-a1><cmp-a2></cmp-a2>''',
                     directives: [CmpA1, CmpA2]))
             .createAsync(MainComp)
@@ -637,7 +635,7 @@ main() {
         tcb
             .overrideView(
                 MainComp,
-                new ViewMetadata(
+                new View(
                     template: "<conditional-content>" +
                         "<div class=\"left\">A</div>" +
                         "<template manual class=\"left\">B</template>" +
@@ -653,14 +651,14 @@ main() {
           var conditionalComp = main.debugElement
               .query(By.directive(ConditionalContentComponent));
           var viewViewportDir = conditionalComp
-              .queryAllNodes(By.directive(ManualViewportDirective))[0]
+              .queryAllNodes(By.nodeDirective(ManualViewportDirective))[0]
               .inject(ManualViewportDirective);
           expect(main.debugElement.nativeElement, hasTextContent("(, D)"));
           expect(main.debugElement.nativeElement, hasTextContent("(, D)"));
           viewViewportDir.show();
           expect(main.debugElement.nativeElement, hasTextContent("(AC, D)"));
           var contentViewportDir = conditionalComp
-              .queryAllNodes(By.directive(ManualViewportDirective))[1]
+              .queryAllNodes(By.nodeDirective(ManualViewportDirective))[1]
               .inject(ManualViewportDirective);
           contentViewportDir.show();
           expect(main.debugElement.nativeElement, hasTextContent("(ABC, D)"));
@@ -725,12 +723,12 @@ class MultipleContentTagsComponent {}
 class ManualViewportDirective {
   ViewContainerRef vc;
   TemplateRef templateRef;
-  ManualViewportDirective(this.vc, this.templateRef) {}
-  show() {
-    this.vc.createEmbeddedView(this.templateRef, 0);
+  ManualViewportDirective(this.vc, this.templateRef);
+  void show() {
+    this.vc.insertEmbeddedView(this.templateRef, 0);
   }
 
-  hide() {
+  void hide() {
     this.vc.clear();
   }
 }
@@ -738,12 +736,12 @@ class ManualViewportDirective {
 @Directive(selector: "[project]")
 class ProjectDirective {
   ViewContainerRef vc;
-  ProjectDirective(this.vc) {}
-  show(TemplateRef templateRef) {
-    this.vc.createEmbeddedView(templateRef, 0);
+  ProjectDirective(this.vc);
+  void show(TemplateRef templateRef) {
+    this.vc.insertEmbeddedView(templateRef, 0);
   }
 
-  hide() {
+  void hide() {
     this.vc.clear();
   }
 }

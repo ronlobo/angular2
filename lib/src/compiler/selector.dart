@@ -1,26 +1,18 @@
-import "package:angular2/src/facade/collection.dart" show Map, ListWrapper;
 import "package:angular2/src/facade/exceptions.dart" show BaseException;
-import "package:angular2/src/facade/lang.dart"
-    show isPresent, isBlank, RegExpWrapper, RegExpMatcherWrapper, StringWrapper;
 
 const _EMPTY_ATTR_VALUE = "";
-// TODO: Can't use `const` here as
-
-// in Dart this is not transpiled into `final` yet...
-var _SELECTOR_REGEXP = RegExpWrapper.create("(\\:not\\()|" +
+final _SELECTOR_REGEXP = new RegExp("(\\:not\\()|" +
     "([-\\w]+)|" +
     "(?:\\.([-\\w]+))|" +
     "(?:\\[([-\\w*]+)(?:=([^\\]]*))?\\])|" +
     "(\\))|" +
     "(\\s*,\\s*)");
 
-/**
- * A css selector contains an element name,
- * css classes and attribute/value pairs with the purpose
- * of selecting subsets out of them.
- */
+/// A css selector contains an element name,
+/// css classes and attribute/value pairs with the purpose
+/// of selecting subsets out of them.
 class CssSelector {
-  String element = null;
+  String element;
   List<String> classNames = [];
   List<String> attrs = [];
   List<CssSelector> notSelectors = [];
@@ -28,20 +20,20 @@ class CssSelector {
     List<CssSelector> results = [];
     var _addResult = (List<CssSelector> res, cssSel) {
       if (cssSel.notSelectors.length > 0 &&
-          isBlank(cssSel.element) &&
-          ListWrapper.isEmpty(cssSel.classNames) &&
-          ListWrapper.isEmpty(cssSel.attrs)) {
+          cssSel.element == null &&
+          cssSel.classNames.isEmpty &&
+          cssSel.attrs.isEmpty) {
         cssSel.element = "*";
       }
       res.add(cssSel);
     };
     var cssSelector = new CssSelector();
-    var matcher = RegExpWrapper.matcher(_SELECTOR_REGEXP, selector);
-    var match;
+    var matcher = _SELECTOR_REGEXP.allMatches(selector);
     var current = cssSelector;
     var inNot = false;
-    while (isPresent(match = RegExpMatcherWrapper.next(matcher))) {
-      if (isPresent(match[1])) {
+    for (var match in matcher) {
+      if (match == null) break;
+      if (match[1] != null) {
         if (inNot) {
           throw new BaseException("Nesting :not is not allowed in a selector");
         }
@@ -49,20 +41,20 @@ class CssSelector {
         current = new CssSelector();
         cssSelector.notSelectors.add(current);
       }
-      if (isPresent(match[2])) {
+      if (match[2] != null) {
         current.setElement(match[2]);
       }
-      if (isPresent(match[3])) {
+      if (match[3] != null) {
         current.addClassName(match[3]);
       }
-      if (isPresent(match[4])) {
+      if (match[4] != null) {
         current.addAttribute(match[4], match[5]);
       }
-      if (isPresent(match[6])) {
+      if (match[6] != null) {
         inNot = false;
         current = cssSelector;
       }
-      if (isPresent(match[7])) {
+      if (match[7] != null) {
         if (inNot) {
           throw new BaseException(
               "Multiple selectors in :not are not supported");
@@ -76,19 +68,19 @@ class CssSelector {
   }
 
   bool isElementSelector() {
-    return isPresent(this.element) &&
-        ListWrapper.isEmpty(this.classNames) &&
-        ListWrapper.isEmpty(this.attrs) &&
-        identical(this.notSelectors.length, 0);
+    return element != null &&
+        classNames.isEmpty &&
+        attrs.isEmpty &&
+        notSelectors.isEmpty;
   }
 
-  setElement([String element = null]) {
+  void setElement([String element = null]) {
     this.element = element;
   }
 
-  /** Gets a template string for an element that matches the selector. */
+  /// Gets a template string for an element that matches the selector.
   String getMatchingElementTemplate() {
-    var tagName = isPresent(this.element) ? this.element : "div";
+    var tagName = element ?? "div";
     var classAttr = this.classNames.length > 0
         ? ''' class="${ this . classNames . join ( " " )}"'''
         : "";
@@ -103,9 +95,9 @@ class CssSelector {
     return '''<${ tagName}${ classAttr}${ attrs}></${ tagName}>''';
   }
 
-  addAttribute(String name, [String value = _EMPTY_ATTR_VALUE]) {
+  void addAttribute(String name, [String value = _EMPTY_ATTR_VALUE]) {
     this.attrs.add(name);
-    if (isPresent(value)) {
+    if (value != null) {
       value = value.toLowerCase();
     } else {
       value = _EMPTY_ATTR_VALUE;
@@ -113,21 +105,21 @@ class CssSelector {
     this.attrs.add(value);
   }
 
-  addClassName(String name) {
+  void addClassName(String name) {
     this.classNames.add(name.toLowerCase());
   }
 
   String toString() {
     var res = "";
-    if (isPresent(this.element)) {
-      res += this.element;
+    if (element != null) {
+      res += element;
     }
-    if (isPresent(this.classNames)) {
+    if (classNames != null) {
       for (var i = 0; i < this.classNames.length; i++) {
         res += "." + this.classNames[i];
       }
     }
-    if (isPresent(this.attrs)) {
+    if (attrs != null) {
       for (var i = 0; i < this.attrs.length;) {
         var attrName = this.attrs[i++];
         var attrValue = this.attrs[i++];
@@ -145,10 +137,8 @@ class CssSelector {
   }
 }
 
-/**
- * Reads a list of CssSelectors and allows to calculate which ones
- * are contained in a given CssSelector.
- */
+/// Reads a list of CssSelectors and allows to calculate which ones
+/// are contained in a given CssSelector.
 class SelectorMatcher {
   static SelectorMatcher createNotMatcher(List<CssSelector> notSelectors) {
     var notMatcher = new SelectorMatcher();
@@ -163,8 +153,8 @@ class SelectorMatcher {
   var _attrValueMap = new Map<String, Map<String, List<SelectorContext>>>();
   var _attrValuePartialMap = new Map<String, Map<String, SelectorMatcher>>();
   List<SelectorListContext> _listContexts = [];
-  addSelectables(List<CssSelector> cssSelectors, [dynamic callbackCtxt]) {
-    var listContext = null;
+  void addSelectables(List<CssSelector> cssSelectors, [dynamic callbackCtxt]) {
+    var listContext;
     if (cssSelectors.length > 1) {
       listContext = new SelectorListContext(cssSelectors);
       this._listContexts.add(listContext);
@@ -174,12 +164,8 @@ class SelectorMatcher {
     }
   }
 
-  /**
-   * Add an object that can be found later on by calling `match`.
-   * 
-   * 
-   */
-  _addSelectable(CssSelector cssSelector, dynamic callbackCtxt,
+  /// Add an object that can be found later on by calling `match`.
+  void _addSelectable(CssSelector cssSelector, dynamic callbackCtxt,
       SelectorListContext listContext) {
     SelectorMatcher matcher = this;
     var element = cssSelector.element;
@@ -187,7 +173,7 @@ class SelectorMatcher {
     var attrs = cssSelector.attrs;
     var selectable =
         new SelectorContext(cssSelector, callbackCtxt, listContext);
-    if (isPresent(element)) {
+    if (element != null) {
       var isTerminal =
           identical(attrs.length, 0) && identical(classNames.length, 0);
       if (isTerminal) {
@@ -196,7 +182,7 @@ class SelectorMatcher {
         matcher = this._addPartial(matcher._elementPartialMap, element);
       }
     }
-    if (isPresent(classNames)) {
+    if (classNames != null) {
       for (var index = 0; index < classNames.length; index++) {
         var isTerminal = identical(attrs.length, 0) &&
             identical(index, classNames.length - 1);
@@ -208,7 +194,7 @@ class SelectorMatcher {
         }
       }
     }
-    if (isPresent(attrs)) {
+    if (attrs != null) {
       for (var index = 0; index < attrs.length;) {
         var isTerminal = identical(index, attrs.length - 2);
         var attrName = attrs[index++];
@@ -216,7 +202,7 @@ class SelectorMatcher {
         if (isTerminal) {
           var terminalMap = matcher._attrValueMap;
           var terminalValuesMap = terminalMap[attrName];
-          if (isBlank(terminalValuesMap)) {
+          if (terminalValuesMap == null) {
             terminalValuesMap = new Map<String, List<SelectorContext>>();
             terminalMap[attrName] = terminalValuesMap;
           }
@@ -224,7 +210,7 @@ class SelectorMatcher {
         } else {
           var parttialMap = matcher._attrValuePartialMap;
           var partialValuesMap = parttialMap[attrName];
-          if (isBlank(partialValuesMap)) {
+          if (partialValuesMap == null) {
             partialValuesMap = new Map<String, SelectorMatcher>();
             parttialMap[attrName] = partialValuesMap;
           }
@@ -234,10 +220,10 @@ class SelectorMatcher {
     }
   }
 
-  _addTerminal(Map<String, List<SelectorContext>> map, String name,
+  void _addTerminal(Map<String, List<SelectorContext>> map, String name,
       SelectorContext selectable) {
     var terminalList = map[name];
-    if (isBlank(terminalList)) {
+    if (terminalList == null) {
       terminalList = [];
       map[name] = terminalList;
     }
@@ -246,20 +232,15 @@ class SelectorMatcher {
 
   SelectorMatcher _addPartial(Map<String, SelectorMatcher> map, String name) {
     var matcher = map[name];
-    if (isBlank(matcher)) {
+    if (matcher == null) {
       matcher = new SelectorMatcher();
       map[name] = matcher;
     }
     return matcher;
   }
 
-  /**
-   * Find the objects that have been added via `addSelectable`
-   * whose css selector is contained in the given css selector.
-   * 
-   * 
-   * 
-  */
+  /// Find the objects that have been added via `addSelectable`
+  /// whose css selector is contained in the given css selector.
   bool match(
       CssSelector cssSelector, void matchedCallback(CssSelector c, dynamic a)) {
     var result = false;
@@ -275,7 +256,7 @@ class SelectorMatcher {
     result = this._matchPartial(
             this._elementPartialMap, element, cssSelector, matchedCallback) ||
         result;
-    if (isPresent(classNames)) {
+    if (classNames != null) {
       for (var index = 0; index < classNames.length; index++) {
         var className = classNames[index];
         result = this._matchTerminal(
@@ -286,12 +267,12 @@ class SelectorMatcher {
             result;
       }
     }
-    if (isPresent(attrs)) {
+    if (attrs != null) {
       for (var index = 0; index < attrs.length;) {
         var attrName = attrs[index++];
         var attrValue = attrs[index++];
         var terminalValuesMap = this._attrValueMap[attrName];
-        if (!StringWrapper.equals(attrValue, _EMPTY_ATTR_VALUE)) {
+        if (attrValue != _EMPTY_ATTR_VALUE) {
           result = this._matchTerminal(terminalValuesMap, _EMPTY_ATTR_VALUE,
                   cssSelector, matchedCallback) ||
               result;
@@ -300,7 +281,7 @@ class SelectorMatcher {
                 terminalValuesMap, attrValue, cssSelector, matchedCallback) ||
             result;
         var partialValuesMap = this._attrValuePartialMap[attrName];
-        if (!StringWrapper.equals(attrValue, _EMPTY_ATTR_VALUE)) {
+        if (attrValue != _EMPTY_ATTR_VALUE) {
           result = this._matchPartial(partialValuesMap, _EMPTY_ATTR_VALUE,
                   cssSelector, matchedCallback) ||
               result;
@@ -316,15 +297,15 @@ class SelectorMatcher {
   /** @internal */
   bool _matchTerminal(Map<String, List<SelectorContext>> map, name,
       CssSelector cssSelector, void matchedCallback(CssSelector c, dynamic a)) {
-    if (isBlank(map) || isBlank(name)) {
+    if (map == null || name == null) {
       return false;
     }
     var selectables = map[name];
     var starSelectables = map["*"];
-    if (isPresent(starSelectables)) {
+    if (starSelectables != null) {
       selectables = (new List.from(selectables)..addAll(starSelectables));
     }
-    if (isBlank(selectables)) {
+    if (selectables == null) {
       return false;
     }
     var selectable;
@@ -360,7 +341,7 @@ typedef void MatchCallbackHandler(CssSelector, dynamic);
 class SelectorListContext {
   List<CssSelector> selectors;
   bool alreadyMatched = false;
-  SelectorListContext(this.selectors) {}
+  SelectorListContext(this.selectors);
 }
 
 // Store context to pass back selector and context when a selector is matched
@@ -376,15 +357,15 @@ class SelectorContext {
       CssSelector cssSelector, void callback(CssSelector c, dynamic a)) {
     var result = true;
     if (this.notSelectors.length > 0 &&
-        (isBlank(this.listContext) || !this.listContext.alreadyMatched)) {
+        (this.listContext == null || !this.listContext.alreadyMatched)) {
       var notMatcher = SelectorMatcher.createNotMatcher(this.notSelectors);
       result = !notMatcher.match(cssSelector, null);
     }
     if (result &&
-        isPresent(callback) &&
-        (isBlank(this.listContext) || !this.listContext.alreadyMatched)) {
-      if (isPresent(this.listContext)) {
-        this.listContext.alreadyMatched = true;
+        callback != null &&
+        (this.listContext == null || !this.listContext.alreadyMatched)) {
+      if (listContext != null) {
+        listContext.alreadyMatched = true;
       }
       callback(this.selector, this.cbContext);
     }

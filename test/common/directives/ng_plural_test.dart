@@ -1,13 +1,13 @@
-@TestOn('browser')
+@TestOn('browser && !js')
 library angular2.test.common.directives.ng_plural_test;
 
-import "package:angular2/testing_internal.dart";
-import "package:angular2/core.dart" show Component, Injectable, provide;
 import "package:angular2/common.dart"
     show NgPlural, NgPluralCase, NgLocalization;
+import "package:angular2/core.dart" show Component, Injectable, provide;
+import "package:angular2/testing_internal.dart";
 import 'package:test/test.dart';
 
-main() {
+void main() {
   group("switch", () {
     setUp(() {
       beforeEachProviders(

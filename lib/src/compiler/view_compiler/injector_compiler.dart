@@ -1,5 +1,4 @@
-import "package:angular2/core.dart" show Injectable;
-import "package:angular2/src/facade/lang.dart" show isPresent, isBlank;
+import "package:angular2/di.dart" show Injectable;
 
 import "../compile_metadata.dart"
     show
@@ -14,7 +13,8 @@ import "../parse_util.dart"
 import "../provider_parser.dart" show AppProviderParser;
 import "../template_ast.dart" show ProviderAst;
 import "constants.dart" show InjectMethodVars;
-import "util.dart" show createDiTokenExpression, convertValueToOutputAst;
+import "view_compiler_utils.dart"
+    show createDiTokenExpression, convertValueToOutputAst;
 
 var mainModuleProp = o.THIS_EXPR.prop("mainModule");
 var parentInjectorProp = o.THIS_EXPR.prop("parent");
@@ -22,7 +22,7 @@ var parentInjectorProp = o.THIS_EXPR.prop("parent");
 class InjectorCompileResult {
   List<o.Statement> statements;
   String injectorFactoryVar;
-  InjectorCompileResult(this.statements, this.injectorFactoryVar) {}
+  InjectorCompileResult(this.statements, this.injectorFactoryVar);
 }
 
 @Injectable()
@@ -30,7 +30,7 @@ class InjectorCompiler {
   InjectorCompileResult compileInjector(
       CompileInjectorModuleMetadata injectorModuleMeta) {
     var builder = new _InjectorBuilder(injectorModuleMeta);
-    var sourceFileName = isPresent(injectorModuleMeta.moduleUrl)
+    var sourceFileName = injectorModuleMeta.moduleUrl != null
         ? '''in InjectorModule ${ injectorModuleMeta . name} in ${ injectorModuleMeta . moduleUrl}'''
         : '''in InjectorModule ${ injectorModuleMeta . name}''';
     var sourceFile = new ParseSourceFile("", sourceFileName);
@@ -78,7 +78,7 @@ class _InjectorBuilder {
   _InjectorBuilder(this._mainModuleType) {
     this._instances.add(identifierToken(Identifiers.Injector), o.THIS_EXPR);
   }
-  addProvider(ProviderAst resolvedProvider) {
+  void addProvider(ProviderAst resolvedProvider) {
     var providerValueExpressions = resolvedProvider.providers
         .map((provider) => this._getProviderValue(provider))
         .toList();
@@ -143,17 +143,15 @@ class _InjectorBuilder {
 
   o.Expression _getProviderValue(CompileProviderMetadata provider) {
     o.Expression result;
-    if (isPresent(provider.useExisting)) {
+    if (provider.useExisting != null) {
       result = this._getDependency(
           new CompileDiDependencyMetadata(token: provider.useExisting));
-    } else if (isPresent(provider.useFactory)) {
-      var deps =
-          isPresent(provider.deps) ? provider.deps : provider.useFactory.diDeps;
+    } else if (provider.useFactory != null) {
+      var deps = provider.deps ?? provider.useFactory.diDeps;
       var depsExpr = deps.map((dep) => this._getDependency(dep)).toList();
       result = o.importExpr(provider.useFactory).callFn(depsExpr);
-    } else if (isPresent(provider.useClass)) {
-      var deps =
-          isPresent(provider.deps) ? provider.deps : provider.useClass.diDeps;
+    } else if (provider.useClass != null) {
+      var deps = provider.deps ?? provider.useClass.diDeps;
       var depsExpr = deps.map((dep) => this._getDependency(dep)).toList();
       result = o
           .importExpr(provider.useClass)
@@ -161,7 +159,7 @@ class _InjectorBuilder {
     } else {
       result = convertValueToOutputAst(provider.useValue);
     }
-    if (isPresent(provider.useProperty)) {
+    if (provider.useProperty != null) {
       result = result.prop(provider.useProperty);
     }
     return result;
@@ -178,16 +176,14 @@ class _InjectorBuilder {
       resolvedProviderValueExpr = providerValueExpressions[0];
       type = providerValueExpressions[0].type;
     }
-    if (isBlank(type)) {
-      type = o.DYNAMIC_TYPE;
-    }
+    type ??= o.DYNAMIC_TYPE;
     if (isEager) {
-      this._fields.add(new o.ClassField(propName, type));
+      this._fields.add(new o.ClassField(propName, outputType: type));
       this._ctorStmts.add(
           o.THIS_EXPR.prop(propName).set(resolvedProviderValueExpr).toStmt());
     } else {
       var internalField = '''_${ propName}''';
-      this._fields.add(new o.ClassField(internalField, type));
+      this._fields.add(new o.ClassField(internalField, outputType: type));
       // Note: Equals is important for JS so that it also checks the undefined case!
       var getterStmts = [
         new o.IfStmt(o.THIS_EXPR.prop(internalField).isBlank(), [
@@ -204,21 +200,19 @@ class _InjectorBuilder {
   }
 
   o.Expression _getDependency(CompileDiDependencyMetadata dep) {
-    var result = null;
+    var result;
     if (dep.isValue) {
       result = o.literal(dep.value);
     }
     if (!dep.isSkipSelf) {
-      if (isBlank(result)) {
-        result = this._instances.get(dep.token);
-      }
-      if (isBlank(result) &&
+      result ??= this._instances.get(dep.token);
+      if (result == null &&
           dep.token.equalsTo(identifierToken(this._mainModuleType))) {
         this._needsMainModule = true;
         result = mainModuleProp;
       }
     }
-    if (isBlank(result)) {
+    if (result == null) {
       var args = [createDiTokenExpression(dep.token)];
       if (dep.isOptional) {
         args.add(o.NULL_EXPR);

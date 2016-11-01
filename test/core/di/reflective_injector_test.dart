@@ -1,10 +1,6 @@
 @TestOn('browser')
 library angular2.test.core.di.reflective_injector_test;
 
-import "package:angular2/src/facade/lang.dart"
-    show isBlank, stringify, isPresent;
-import "package:angular2/src/facade/exceptions.dart" show BaseException;
-import "package:angular2/testing_internal.dart";
 import "package:angular2/core.dart"
     show
         provide,
@@ -12,26 +8,32 @@ import "package:angular2/core.dart"
         ReflectiveInjector,
         Injector,
         Injectable,
-        InjectMetadata,
-        SelfMetadata,
+        Inject,
+        Self,
         Optional,
         Inject,
         Provider,
         InjectorModule,
         Provides;
+import "package:angular2/src/core/di/decorators.dart";
+import "package:angular2/src/core/di/reflective_exceptions.dart";
 import "package:angular2/src/core/di/reflective_injector.dart"
     show
-        ReflectiveInjector_,
+        ReflectiveInjectorImpl,
         ReflectiveInjectorInlineStrategy,
         ReflectiveInjectorDynamicStrategy,
         ReflectiveProtoInjector;
-import "package:angular2/src/core/di/reflective_exceptions.dart";
-import "package:angular2/src/core/di/metadata.dart" show DependencyMetadata;
 import "package:angular2/src/core/di/reflective_provider.dart"
-    show ResolvedReflectiveProvider_;
+    show ResolvedReflectiveProviderImpl;
+import "package:angular2/src/facade/exceptions.dart" show BaseException;
+import "package:angular2/src/facade/lang.dart" show stringify;
+import "package:angular2/testing_internal.dart";
 import 'package:test/test.dart';
 
-class CustomDependencyMetadata extends DependencyMetadata {}
+class CustomDependencyMetadata extends DependencyMetadata {
+  @override
+  get token => null;
+}
 
 class Engine {}
 
@@ -45,7 +47,7 @@ class DashboardSoftware {}
 
 @Injectable()
 class Dashboard {
-  Dashboard(DashboardSoftware software) {}
+  Dashboard(DashboardSoftware software);
 }
 
 class TurboEngine extends Engine {}
@@ -78,9 +80,7 @@ class CarWithDashboard {
 
 @Injectable()
 class SportsCar extends Car {
-  SportsCar(Engine engine) : super(engine) {
-    /* super call moved to initializer */;
-  }
+  SportsCar(Engine engine) : super(engine);
 }
 
 @Injectable()
@@ -93,11 +93,11 @@ class CarWithInject {
 
 @Injectable()
 class CyclicEngine {
-  CyclicEngine(Car car) {}
+  CyclicEngine(Car car);
 }
 
 class NoAnnotations {
-  NoAnnotations(secretDependency) {}
+  NoAnnotations(secretDependency);
 }
 
 factoryFn(a) {}
@@ -107,13 +107,13 @@ class SomeService {}
 
 @InjectorModule(providers: const [Car])
 class SomeModuleWithProvider {
-  SomeModuleWithProvider() {}
+  SomeModuleWithProvider();
 }
 
 @InjectorModule()
 class SomeModuleWithDeps {
   SomeService someService;
-  SomeModuleWithDeps(this.someService) {}
+  SomeModuleWithDeps(this.someService);
 }
 
 @InjectorModule()
@@ -124,7 +124,16 @@ class SomeModuleWithProp {
   var multiProp = "aMultiValue";
 }
 
-main() {
+final _funcRegExp = "'\.*factoryFn\.*'";
+
+final _notDecoratedRegExp =
+    new RegExp("Cannot resolve all parameters for $_funcRegExp"
+        r"\(\?\)\. "
+        "Make sure that all the parameters are decorated with Inject or have "
+        "valid type annotations and that $_funcRegExp is decorated with "
+        r"Injectable\.");
+
+void main() {
   var dynamicProviders = [
     provide("provider0", useValue: 1),
     provide("provider1", useValue: 1),
@@ -152,19 +161,19 @@ main() {
             (List<dynamic> providers, [ReflectiveInjector parent = null]) {
           var resolvedProviders = ReflectiveInjector.resolve(
               (new List.from(providers)..addAll(context["providers"])));
-          if (isPresent(parent)) {
+          if (parent != null) {
             return (parent.createChildFromResolved(resolvedProviders)
-                as ReflectiveInjector_);
+                as ReflectiveInjectorImpl);
           } else {
             return (ReflectiveInjector.fromResolvedProviders(resolvedProviders)
-                as ReflectiveInjector_);
+                as ReflectiveInjectorImpl);
           }
         };
       });
     });
 
     test("should use the right strategy", () {
-      ReflectiveInjector_ injector = createInjector([]);
+      ReflectiveInjectorImpl injector = createInjector([]);
       expect(injector.internalStrategy.runtimeType,
           ReflectiveInjectorInlineStrategy);
     });
@@ -197,10 +206,7 @@ main() {
     test("should throw when no type and not @Inject (factory case)", () {
       expect(
           () => createInjector([provide("someToken", useFactory: factoryFn)]),
-          throwsWith("Cannot resolve all parameters for 'factoryFn'(?). "
-              "Make sure that all the parameters are decorated "
-              "with Inject or have valid type annotations " +
-              "and that 'factoryFn' is decorated with Injectable."));
+          throwsWith(_notDecoratedRegExp));
     });
     test("should cache instances", () {
       var injector = createInjector([Engine]);
@@ -214,9 +220,10 @@ main() {
       expect(engine, "fake engine");
     });
     test("should provide to a factory", () {
-      sportsCarFactory(e) {
+      SportsCar sportsCarFactory(e) {
         return new SportsCar(e);
       }
+
       var injector = createInjector([
         Engine,
         provide(Car, useFactory: sportsCarFactory, deps: [Engine])
@@ -227,9 +234,10 @@ main() {
     });
     test("should throw when using a factory with more than 20 dependencies",
         () {
-      factoryWithTooManyArgs() {
+      Car factoryWithTooManyArgs() {
         return new Car(null);
       }
+
       var injector = createInjector([
         Engine,
         provide(Car, useFactory: factoryWithTooManyArgs, deps: [
@@ -390,7 +398,7 @@ main() {
       var providers = ReflectiveInjector
           .resolve([Car, provide(Engine, useClass: BrokenEngine)]);
       var proto = new ReflectiveProtoInjector([providers[0], providers[1]]);
-      var injector = new ReflectiveInjector_(proto);
+      var injector = new ReflectiveInjectorImpl(proto);
       try {
         injector.get(Car);
         throw "Must throw";
@@ -410,9 +418,9 @@ main() {
       var carProvider = ReflectiveInjector.resolve([Car])[0];
       var protoChild = new ReflectiveProtoInjector([carProvider]);
       var parent =
-          new ReflectiveInjector_(protoParent, null, () => "parentContext");
+          new ReflectiveInjectorImpl(protoParent, null, () => "parentContext");
       var child =
-          new ReflectiveInjector_(protoChild, parent, () => "childContext");
+          new ReflectiveInjectorImpl(protoChild, parent, () => "childContext");
       try {
         child.get(Car);
         throw "Must throw";
@@ -495,7 +503,7 @@ main() {
           var inj = ReflectiveInjector.resolveAndCreate([
             Engine,
             provide(Car, useFactory: (e) => new Car(e), deps: [
-              [Engine, new SelfMetadata()]
+              [Engine, new Self()]
             ])
           ]);
           expect(inj.get(Car), new isInstanceOf<Car>());
@@ -504,7 +512,7 @@ main() {
           var parent = ReflectiveInjector.resolveAndCreate([Engine]);
           var child = parent.resolveAndCreateChild([
             provide(Car, useFactory: (e) => new Car(e), deps: [
-              [Engine, new SelfMetadata()]
+              [Engine, new Self()]
             ])
           ]);
           expect(
@@ -547,8 +555,8 @@ main() {
           [BrokenEngine]
         ]);
         providers.forEach((b) {
-          if (isBlank(b)) return;
-          expect(b is ResolvedReflectiveProvider_, isTrue);
+          if (b == null) return;
+          expect(b is ResolvedReflectiveProviderImpl, isTrue);
         });
       });
       test("should support multi providers", () {
@@ -602,7 +610,7 @@ main() {
           'dependency annotations', () {
         var providers = ReflectiveInjector.resolve([
           provide("token", useFactory: (e) => "result", deps: [
-            [new InjectMetadata("dep"), new CustomDependencyMetadata()]
+            [new Inject("dep"), new CustomDependencyMetadata()]
           ])
         ]);
         var provider = providers[0];
@@ -612,12 +620,11 @@ main() {
       });
       test("should allow declaring dependencies with flat arrays", () {
         var resolved = ReflectiveInjector.resolve([
-          provide("token",
-              useFactory: (e) => e, deps: [new InjectMetadata("dep")])
+          provide("token", useFactory: (e) => e, deps: [new Inject("dep")])
         ]);
         var nestedResolved = ReflectiveInjector.resolve([
           provide("token", useFactory: (e) => e, deps: [
-            [new InjectMetadata("dep")]
+            [new Inject("dep")]
           ])
         ]);
         expect(resolved[0].resolvedFactories[0].dependencies[0].key.token,
@@ -628,7 +635,7 @@ main() {
       test("should work", () {
         expect(
             ((ReflectiveInjector.resolveAndCreate([Engine, BrokenEngine])
-                    as ReflectiveInjector_))
+                    as ReflectiveInjectorImpl))
                 .displayName,
             'ReflectiveInjector(providers: [ "Engine" ,  "BrokenEngine" ])');
       });
@@ -692,18 +699,18 @@ main() {
           (List<dynamic> providers, [ReflectiveInjector parent = null]) {
         var resolvedProviders = ReflectiveInjector
             .resolve((new List.from(providers)..addAll(context["providers"])));
-        if (isPresent(parent)) {
+        if (parent != null) {
           return (parent.createChildFromResolved(resolvedProviders)
-              as ReflectiveInjector_);
+              as ReflectiveInjectorImpl);
         } else {
           return (ReflectiveInjector.fromResolvedProviders(resolvedProviders)
-              as ReflectiveInjector_);
+              as ReflectiveInjectorImpl);
         }
       };
     });
 
     test("should use the right strategy", () {
-      ReflectiveInjector_ injector = createInjector([]);
+      ReflectiveInjectorImpl injector = createInjector([]);
       expect(injector.internalStrategy.runtimeType,
           ReflectiveInjectorDynamicStrategy);
     });
@@ -736,10 +743,7 @@ main() {
     test("should throw when no type and not @Inject (factory case)", () {
       expect(
           () => createInjector([provide("someToken", useFactory: factoryFn)]),
-          throwsWith("Cannot resolve all parameters for 'factoryFn'(?). "
-              "Make sure that all the parameters are decorated "
-              "with Inject or have valid type annotations " +
-              "and that 'factoryFn' is decorated with Injectable."));
+          throwsWith(_notDecoratedRegExp));
     });
     test("should cache instances", () {
       var injector = createInjector([Engine]);
@@ -753,9 +757,10 @@ main() {
       expect(engine, "fake engine");
     });
     test("should provide to a factory", () {
-      sportsCarFactory(e) {
+      SportsCar sportsCarFactory(e) {
         return new SportsCar(e);
       }
+
       var injector = createInjector([
         Engine,
         provide(Car, useFactory: sportsCarFactory, deps: [Engine])
@@ -766,9 +771,10 @@ main() {
     });
     test("should throw when using a factory with more than 20 dependencies",
         () {
-      factoryWithTooManyArgs() {
+      Car factoryWithTooManyArgs() {
         return new Car(null);
       }
+
       var injector = createInjector([
         Engine,
         provide(Car, useFactory: factoryWithTooManyArgs, deps: [
@@ -929,7 +935,7 @@ main() {
       var providers = ReflectiveInjector
           .resolve([Car, provide(Engine, useClass: BrokenEngine)]);
       var proto = new ReflectiveProtoInjector([providers[0], providers[1]]);
-      var injector = new ReflectiveInjector_(proto);
+      var injector = new ReflectiveInjectorImpl(proto);
       try {
         injector.get(Car);
         throw "Must throw";
@@ -949,9 +955,9 @@ main() {
       var carProvider = ReflectiveInjector.resolve([Car])[0];
       var protoChild = new ReflectiveProtoInjector([carProvider]);
       var parent =
-          new ReflectiveInjector_(protoParent, null, () => "parentContext");
+          new ReflectiveInjectorImpl(protoParent, null, () => "parentContext");
       var child =
-          new ReflectiveInjector_(protoChild, parent, () => "childContext");
+          new ReflectiveInjectorImpl(protoChild, parent, () => "childContext");
       try {
         child.get(Car);
         throw "Must throw";
@@ -1034,7 +1040,7 @@ main() {
           var inj = ReflectiveInjector.resolveAndCreate([
             Engine,
             provide(Car, useFactory: (e) => new Car(e), deps: [
-              [Engine, new SelfMetadata()]
+              [Engine, new Self()]
             ])
           ]);
           expect(inj.get(Car), new isInstanceOf<Car>());
@@ -1043,7 +1049,7 @@ main() {
           var parent = ReflectiveInjector.resolveAndCreate([Engine]);
           var child = parent.resolveAndCreateChild([
             provide(Car, useFactory: (e) => new Car(e), deps: [
-              [Engine, new SelfMetadata()]
+              [Engine, new Self()]
             ])
           ]);
           expect(
@@ -1070,8 +1076,8 @@ main() {
           [BrokenEngine]
         ]);
         providers.forEach((b) {
-          if (isBlank(b)) return;
-          expect(b is ResolvedReflectiveProvider_, isTrue);
+          if (b == null) return;
+          expect(b is ResolvedReflectiveProviderImpl, isTrue);
         });
       });
       test("should support multi providers", () {
@@ -1125,7 +1131,7 @@ main() {
           'dependency annotations', () {
         var providers = ReflectiveInjector.resolve([
           provide("token", useFactory: (e) => "result", deps: [
-            [new InjectMetadata("dep"), new CustomDependencyMetadata()]
+            [new Inject("dep"), new CustomDependencyMetadata()]
           ])
         ]);
         var provider = providers[0];
@@ -1135,12 +1141,11 @@ main() {
       });
       test("should allow declaring dependencies with flat arrays", () {
         var resolved = ReflectiveInjector.resolve([
-          provide("token",
-              useFactory: (e) => e, deps: [new InjectMetadata("dep")])
+          provide("token", useFactory: (e) => e, deps: [new Inject("dep")])
         ]);
         var nestedResolved = ReflectiveInjector.resolve([
           provide("token", useFactory: (e) => e, deps: [
-            [new InjectMetadata("dep")]
+            [new Inject("dep")]
           ])
         ]);
         expect(resolved[0].resolvedFactories[0].dependencies[0].key.token,
@@ -1151,7 +1156,7 @@ main() {
       test("should work", () {
         expect(
             ((ReflectiveInjector.resolveAndCreate([Engine, BrokenEngine])
-                    as ReflectiveInjector_))
+                    as ReflectiveInjectorImpl))
                 .displayName,
             'ReflectiveInjector(providers: [ "Engine" ,  "BrokenEngine" ])');
       });

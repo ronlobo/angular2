@@ -1,13 +1,12 @@
 import "package:angular2/core.dart"
     show ReflectiveInjector, PLATFORM_INITIALIZER;
-import "package:angular2/src/facade/collection.dart" show ListWrapper;
 import "package:angular2/src/facade/exceptions.dart" show BaseException;
 
 class TestInjector {
   bool _instantiated = false;
-  ReflectiveInjector _injector = null;
+  ReflectiveInjector _injector;
   List<dynamic /* Type | Provider | List < dynamic > */ > _providers = [];
-  reset() {
+  void reset() {
     this._injector = null;
     this._providers = [];
     this._instantiated = false;
@@ -17,20 +16,20 @@ class TestInjector {
       [];
   List<dynamic /* Type | Provider | List < dynamic > */ > applicationProviders =
       [];
-  addProviders(
+  void addProviders(
       List<dynamic /* Type | Provider | List < dynamic > */ > providers) {
     if (this._instantiated) {
       throw new StateError(
           "Cannot add providers after test injector is instantiated");
     }
-    this._providers = ListWrapper.concat(this._providers, providers);
+    this._providers = new List.from(this._providers)..addAll(providers);
   }
 
-  createInjector() {
+  ReflectiveInjector createInjector() {
     var rootInjector =
         ReflectiveInjector.resolveAndCreate(this.platformProviders);
     this._injector = rootInjector.resolveAndCreateChild(
-        ListWrapper.concat(this.applicationProviders, this._providers));
+        new List.from(applicationProviders)..addAll(_providers));
     this._instantiated = true;
     return this._injector;
   }
@@ -47,26 +46,24 @@ class TestInjector {
   }
 }
 
-TestInjector _testInjector = null;
-getTestInjector() {
+TestInjector _testInjector;
+TestInjector getTestInjector() {
   if (_testInjector == null) {
     _testInjector = new TestInjector();
   }
   return _testInjector;
 }
 
-/**
- * Set the providers that the test injector should use. These should be providers
- * common to every test in the suite.
- *
- * This may only be called once, to set up the common providers for the current test
- * suite on teh current platform. If you absolutely need to change the providers,
- * first use `resetBaseTestProviders`.
- *
- * Test Providers for individual platforms are available from
- * 'angular2/platform/testing/<platform_name>'.
- */
-setBaseTestProviders(
+/// Set the providers that the test injector should use. These should be providers
+/// common to every test in the suite.
+///
+/// This may only be called once, to set up the common providers for the current test
+/// suite on teh current platform. If you absolutely need to change the providers,
+/// first use `resetBaseTestProviders`.
+///
+/// Test Providers for individual platforms are available from
+/// 'angular2/platform/testing/<platform_name>'.
+void setBaseTestProviders(
     List<dynamic /* Type | Provider | List < dynamic > */ > platformProviders,
     List<
         dynamic /* Type | Provider | List < dynamic > */ > applicationProviders) {
@@ -85,49 +82,41 @@ setBaseTestProviders(
   testInjector.reset();
 }
 
-/**
- * Reset the providers for the test injector.
- */
-resetBaseTestProviders() {
+/// Reset the providers for the test injector.
+void resetBaseTestProviders() {
   var testInjector = getTestInjector();
   testInjector.platformProviders = [];
   testInjector.applicationProviders = [];
   testInjector.reset();
 }
 
-/**
- * Allows injecting dependencies in `beforeEach()` and `it()`.
- *
- * Example:
- *
- * ```
- * beforeEach(inject([Dependency, AClass], (dep, object) => {
- *   // some code that uses `dep` and `object`
- *   // ...
- * }));
- *
- * it('...', inject([AClass], (object) => {
- *   object.doSomething();
- *   expect(...);
- * })
- * ```
- *
- * Notes:
- * - inject is currently a function because of some Traceur limitation the syntax should
- * eventually
- *   becomes `it('...', @Inject (object: AClass, async: AsyncTestCompleter) => { ... });`
- *
- * 
- * 
- * 
- */
+/// Allows injecting dependencies in `beforeEach()` and `it()`.
+///
+/// Example:
+///
+/// ```
+/// beforeEach(inject([Dependency, AClass], (dep, object) => {
+///   // some code that uses `dep` and `object`
+///   // ...
+/// }));
+///
+/// it('...', inject([AClass], (object) => {
+///   object.doSomething();
+///   expect(...);
+/// })
+/// ```
+///
+/// Notes:
+/// - inject is currently a function because of some Traceur limitation the syntax should
+/// eventually
+///   becomes `it('...', @Inject (object: AClass, async: AsyncTestCompleter) => { ... });`
 FunctionWithParamTokens inject(List<dynamic> tokens, Function fn) {
   return new FunctionWithParamTokens(tokens, fn, false);
 }
 
 class InjectSetupWrapper {
   dynamic /* () => any */ _providers;
-  InjectSetupWrapper(this._providers) {}
+  InjectSetupWrapper(this._providers);
   FunctionWithParamTokens inject(List<dynamic> tokens, Function fn) {
     return new FunctionWithParamTokens(tokens, fn, false, this._providers);
   }
@@ -138,49 +127,41 @@ class InjectSetupWrapper {
   }
 }
 
-withProviders(dynamic providers()) {
+InjectSetupWrapper withProviders(dynamic providers()) {
   return new InjectSetupWrapper(providers);
 }
 
-/**
- * @Deprecated {use async(inject())}
- *
- * Allows injecting dependencies in `beforeEach()` and `it()`. The test must return
- * a promise which will resolve when all asynchronous activity is complete.
- *
- * Example:
- *
- * ```
- * it('...', injectAsync([AClass], (object) => {
- *   return object.doSomething().then(() => {
- *     expect(...);
- *   });
- * })
- * ```
- *
- * 
- * 
- * 
- */
+/// @Deprecated {use async(inject())}
+///
+/// Allows injecting dependencies in `beforeEach()` and `it()`. The test must return
+/// a promise which will resolve when all asynchronous activity is complete.
+///
+/// Example:
+///
+/// ```
+/// it('...', injectAsync([AClass], (object) => {
+///   return object.doSomething().then(() => {
+///     expect(...);
+///   });
+/// })
+/// ```
 FunctionWithParamTokens injectAsync(List<dynamic> tokens, Function fn) {
   return new FunctionWithParamTokens(tokens, fn, true);
 }
 
-/**
- * Wraps a test function in an asynchronous test zone. The test will automatically
- * complete when all asynchronous calls within this zone are done. Can be used
- * to wrap an [inject] call.
- *
- * Example:
- *
- * ```
- * it('...', async(inject([AClass], (object) => {
- *   object.doSomething.then(() => {
- *     expect(...);
- *   })
- * });
- * ```
- */
+/// Wraps a test function in an asynchronous test zone. The test will automatically
+/// complete when all asynchronous calls within this zone are done. Can be used
+/// to wrap an [inject] call.
+///
+/// Example:
+///
+/// ```
+/// it('...', async(inject([AClass], (object) => {
+///   object.doSomething.then(() => {
+///     expect(...);
+///   })
+/// });
+/// ```
 FunctionWithParamTokens async(
     dynamic /* Function | FunctionWithParamTokens */ fn) {
   if (fn is FunctionWithParamTokens) {
@@ -204,7 +185,7 @@ class FunctionWithParamTokens {
   bool isAsync;
   dynamic /* () => any */ additionalProviders;
   FunctionWithParamTokens(this._tokens, this.fn, this.isAsync,
-      [this.additionalProviders = emptyArray]) {}
+      [this.additionalProviders = emptyArray]);
 
   /// Returns the value of the executed function.
   dynamic execute(ReflectiveInjector injector) {

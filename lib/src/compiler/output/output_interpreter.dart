@@ -1,16 +1,32 @@
+import 'dart:html';
+
+import "package:angular2/src/compiler/identifiers.dart";
+import "package:angular2/src/core/linker.dart" show QueryList;
+import "package:angular2/src/core/linker/app_element.dart";
+import "package:angular2/src/core/linker/app_view.dart";
+import "package:angular2/src/core/linker/app_view_utils.dart";
+import "package:angular2/src/core/linker/component_factory.dart";
+import "package:angular2/src/core/linker/template_ref.dart";
+import "package:angular2/src/core/linker/view_container_ref.dart"
+    show ViewContainerRef;
 import "package:angular2/src/core/reflection/reflection.dart" show reflector;
-import "package:angular2/src/facade/async.dart" show ObservableWrapper;
-import "package:angular2/src/facade/collection.dart" show ListWrapper;
+import "package:angular2/src/debug/debug_app_view.dart";
+import "package:angular2/src/debug/debug_context.dart"
+    show StaticNodeDebugInfo, DebugContext;
 import "package:angular2/src/facade/exceptions.dart" show BaseException;
-import "package:angular2/src/facade/lang.dart"
-    show isPresent, IS_DART, FunctionWrapper;
 
 import "dart_emitter.dart" show debugOutputAstAsDart;
+import "dynamic_instance.dart";
 import "output_ast.dart" as o;
-import "ts_emitter.dart" show debugOutputAstAsTypeScript;
+
+bool _interpreterInitialized = false;
 
 dynamic interpretStatements(List<o.Statement> statements, String resultVar,
     InstanceFactory instanceFactory) {
+  if (!_interpreterInitialized) {
+    _initializeInterpreter();
+    _interpreterInitialized = true;
+  }
   List<o.Statement> stmtsWithReturn = (new List.from(statements)
     ..addAll([new o.ReturnStatement(o.variable(resultVar))]));
   var ctx = new _ExecutionContext(
@@ -28,37 +44,6 @@ dynamic interpretStatements(List<o.Statement> statements, String resultVar,
   return result?.value;
 }
 
-abstract class InstanceFactory {
-  DynamicInstance createInstance(
-      dynamic superClass,
-      dynamic clazz,
-      List<dynamic> constructorArgs,
-      Map<String, dynamic> props,
-      Map<String, Function> getters,
-      Map<String, Function> methods);
-}
-
-abstract class DynamicInstance {
-  Map<String, dynamic> get props;
-
-  Map<String, Function> get getters;
-
-  Map<String, dynamic> get methods;
-
-  dynamic get clazz;
-}
-
-dynamic isDynamicInstance(dynamic instance) {
-  if (IS_DART) {
-    return instance is DynamicInstance;
-  } else {
-    return isPresent(instance) &&
-        isPresent(instance.props) &&
-        isPresent(instance.getters) &&
-        isPresent(instance.methods);
-  }
-}
-
 dynamic _executeFunctionStatements(
     List<String> varNames,
     List<dynamic> varValues,
@@ -70,7 +55,7 @@ dynamic _executeFunctionStatements(
     childCtx.vars[varNames[i]] = varValues[i];
   }
   var result = visitor.visitAllStatements(statements, childCtx);
-  return isPresent(result) ? result.value : null;
+  return result?.value;
 }
 
 class _ExecutionContext {
@@ -92,7 +77,7 @@ class _ExecutionContext {
       this.props,
       this.getters,
       this.methods,
-      this.instanceFactory) {}
+      this.instanceFactory);
   _ExecutionContext createChildWihtLocalVars() {
     return new _ExecutionContext(
         this,
@@ -116,7 +101,7 @@ class _DynamicClass {
   o.ClassStmt _classStmt;
   _ExecutionContext _ctx;
   StatementInterpreter _visitor;
-  _DynamicClass(this._classStmt, this._ctx, this._visitor) {}
+  _DynamicClass(this._classStmt, this._ctx, this._visitor);
   DynamicInstance instantiate(List<dynamic> args) {
     var props = new Map<String, dynamic>();
     var getters = new Map<String, Function>();
@@ -134,7 +119,8 @@ class _DynamicClass {
         methods,
         this._ctx.instanceFactory);
     this._classStmt.fields.forEach((o.ClassField field) {
-      props[field.name] = null;
+      props[field.name] =
+          field.initializer?.visitExpression(this._visitor, _ctx);
     });
     this._classStmt.getters.forEach((o.ClassGetter getter) {
       getters[getter.name] = () => _executeFunctionStatements(
@@ -163,17 +149,17 @@ class _DynamicClass {
 
 class StatementInterpreter implements o.StatementVisitor, o.ExpressionVisitor {
   String debugAst(dynamic /* o . Expression | o . Statement | o . Type */ ast) {
-    return IS_DART
-        ? debugOutputAstAsDart(ast)
-        : debugOutputAstAsTypeScript(ast);
+    return debugOutputAstAsDart(ast);
   }
 
+  @override
   dynamic visitDeclareVarStmt(o.DeclareVarStmt stmt, dynamic context) {
     _ExecutionContext ctx = context;
-    ctx.vars[stmt.name] = stmt.value.visitExpression(this, ctx);
+    ctx.vars[stmt.name] = stmt.value?.visitExpression(this, ctx);
     return null;
   }
 
+  @override
   dynamic visitWriteVarExpr(o.WriteVarExpr expr, dynamic context) {
     _ExecutionContext ctx = context;
     var value = expr.value.visitExpression(this, ctx);
@@ -185,13 +171,14 @@ class StatementInterpreter implements o.StatementVisitor, o.ExpressionVisitor {
       }
       currCtx = currCtx.parent;
     }
-    throw new BaseException('''Not declared variable ${ expr . name}''');
+    throw new BaseException('Not declared variable ${expr.name}');
   }
 
+  @override
   dynamic visitReadVarExpr(o.ReadVarExpr ast, dynamic context) {
     _ExecutionContext ctx = context;
     var varName = ast.name;
-    if (isPresent(ast.builtin)) {
+    if (ast.builtin != null) {
       switch (ast.builtin) {
         case o.BuiltinVar.Super:
         case o.BuiltinVar.This:
@@ -205,8 +192,7 @@ class StatementInterpreter implements o.StatementVisitor, o.ExpressionVisitor {
         case o.BuiltinVar.MetadataMap:
           return null;
         default:
-          throw new BaseException(
-              '''Unknown builtin variable ${ ast . builtin}''');
+          throw new BaseException('Unknown builtin variable ${ ast . builtin}');
       }
     }
     var currCtx = ctx;
@@ -216,9 +202,17 @@ class StatementInterpreter implements o.StatementVisitor, o.ExpressionVisitor {
       }
       currCtx = currCtx.parent;
     }
-    throw new BaseException('''Not declared variable ${ varName}''');
+    throw new BaseException('Not declared variable ${varName}');
   }
 
+  @override
+  dynamic visitReadClassMemberExpr(o.ReadClassMemberExpr ast, dynamic context) {
+    _ExecutionContext ctx = context;
+    var receiver = o.THIS_EXPR.visitExpression(this, ctx);
+    return _readPropertyValue(receiver, ast.name);
+  }
+
+  @override
   dynamic visitWriteKeyExpr(o.WriteKeyExpr expr, dynamic context) {
     _ExecutionContext ctx = context;
     var receiver = expr.receiver.visitExpression(this, ctx);
@@ -228,14 +222,14 @@ class StatementInterpreter implements o.StatementVisitor, o.ExpressionVisitor {
     return value;
   }
 
+  @override
   dynamic visitWritePropExpr(o.WritePropExpr expr, dynamic context) {
     _ExecutionContext ctx = context;
     var receiver = expr.receiver.visitExpression(this, ctx);
     var value = expr.value.visitExpression(this, ctx);
-    if (isDynamicInstance(receiver)) {
-      var di = (receiver as DynamicInstance);
-      if (di.props.containsKey(expr.name)) {
-        di.props[expr.name] = value;
+    if (receiver is DynamicInstance) {
+      if (receiver.props.containsKey(expr.name)) {
+        receiver.props[expr.name] = value;
       } else {
         reflector.setter(expr.name)(receiver, value);
       }
@@ -245,39 +239,76 @@ class StatementInterpreter implements o.StatementVisitor, o.ExpressionVisitor {
     return value;
   }
 
+  @override
+  dynamic visitWriteClassMemberExpr(
+      o.WriteClassMemberExpr expr, dynamic context) {
+    _ExecutionContext ctx = context;
+    var receiver = o.THIS_EXPR.visitExpression(this, ctx);
+    var value = expr.value.visitExpression(this, ctx);
+    if (receiver is DynamicInstance) {
+      if (receiver.props.containsKey(expr.name)) {
+        receiver.props[expr.name] = value;
+      } else {
+        reflector.setter(expr.name)(receiver, value);
+      }
+    } else {
+      reflector.setter(expr.name)(receiver, value);
+    }
+    return value;
+  }
+
+  @override
   dynamic visitInvokeMethodExpr(o.InvokeMethodExpr expr, dynamic context) {
     _ExecutionContext ctx = context;
     var receiver = expr.receiver.visitExpression(this, ctx);
     var args = this.visitAllExpressions(expr.args, ctx);
     var result;
-    if (isPresent(expr.builtin)) {
+    if (expr.builtin != null) {
       switch (expr.builtin) {
         case o.BuiltinMethod.ConcatArray:
-          result = ListWrapper.concat(receiver, args[0]);
+          result = new List.from(receiver)..addAll(args[0]);
           break;
         case o.BuiltinMethod.SubscribeObservable:
-          result = ObservableWrapper.subscribe(receiver, args[0]);
+          result = receiver.listen(args[0]);
           break;
         case o.BuiltinMethod.bind:
-          if (IS_DART) {
-            result = receiver;
-          } else {
-            result = receiver.bind(args[0]);
-          }
+          result = receiver;
           break;
         default:
-          throw new BaseException(
-              '''Unknown builtin method ${ expr . builtin}''');
+          throw new BaseException('Unknown builtin method ${expr.builtin}');
       }
-    } else if (isDynamicInstance(receiver)) {
-      var di = (receiver as DynamicInstance);
-      if (di.methods.containsKey(expr.name)) {
-        result = FunctionWrapper.apply(di.methods[expr.name], args);
+    } else if (receiver is DynamicInstance) {
+      if (receiver.methods.containsKey(expr.name)) {
+        result = Function.apply(receiver.methods[expr.name], args);
       } else {
         result = reflector.method(expr.name)(receiver, args);
       }
     } else {
+      if (expr.checked && (receiver == null || receiver == o.NULL_EXPR)) {
+        return null;
+      }
       result = reflector.method(expr.name)(receiver, args);
+    }
+    return result;
+  }
+
+  @override
+  dynamic visitInvokeMemberMethodExpr(
+      o.InvokeMemberMethodExpr expr, dynamic context) {
+    _ExecutionContext ctx = context;
+    var result;
+    var receiver = ctx.superInstance;
+    var methodName = expr.methodName;
+    var args = visitAllExpressions(expr.args, ctx);
+    if (receiver is DynamicInstance) {
+      // Don't call if it's a check-for-null safe method call.
+      if (receiver.methods.containsKey(methodName)) {
+        result = Function.apply(receiver.methods[methodName], args);
+      } else {
+        result = reflector.method(methodName)(receiver, args);
+      }
+    } else {
+      result = reflector.method(methodName)(receiver, args);
     }
     return result;
   }
@@ -294,7 +325,7 @@ class StatementInterpreter implements o.StatementVisitor, o.ExpressionVisitor {
       return null;
     } else {
       var fn = stmt.fn.visitExpression(this, ctx);
-      return FunctionWrapper.apply(fn, args);
+      return Function.apply(fn, args);
     }
   }
 
@@ -320,7 +351,7 @@ class StatementInterpreter implements o.StatementVisitor, o.ExpressionVisitor {
     var condition = stmt.condition.visitExpression(this, ctx);
     if (condition) {
       return this.visitAllStatements(stmt.trueCase, ctx);
-    } else if (isPresent(stmt.falseCase)) {
+    } else if (stmt.falseCase != null) {
       return this.visitAllStatements(stmt.falseCase, ctx);
     }
     return null;
@@ -354,7 +385,7 @@ class StatementInterpreter implements o.StatementVisitor, o.ExpressionVisitor {
     if (clazz is _DynamicClass) {
       return clazz.instantiate(args);
     } else {
-      return FunctionWrapper.apply(reflector.factory(clazz), args);
+      return Function.apply(reflector.factory(clazz), args);
     }
   }
 
@@ -372,10 +403,16 @@ class StatementInterpreter implements o.StatementVisitor, o.ExpressionVisitor {
     _ExecutionContext ctx = context;
     if (ast.condition.visitExpression(this, ctx)) {
       return ast.trueCase.visitExpression(this, ctx);
-    } else if (isPresent(ast.falseCase)) {
+    } else if (ast.falseCase != null) {
       return ast.falseCase.visitExpression(this, ctx);
     }
     return null;
+  }
+
+  dynamic visitIfNullExpr(o.IfNullExpr ast, dynamic context) {
+    _ExecutionContext ctx = context;
+    return ast.condition.visitExpression(this, ctx) ??
+        ast.nullCase.visitExpression(this, ctx);
   }
 
   dynamic visitNotExpr(o.NotExpr ast, dynamic context) {
@@ -438,27 +475,30 @@ class StatementInterpreter implements o.StatementVisitor, o.ExpressionVisitor {
       case o.BinaryOperator.BiggerEquals:
         return lhs() >= rhs();
       default:
-        throw new BaseException('''Unknown operator ${ ast . operator}''');
+        throw new BaseException('Unknown operator ${ast.operator}');
     }
   }
 
   dynamic visitReadPropExpr(o.ReadPropExpr ast, dynamic context) {
     _ExecutionContext ctx = context;
-    var result;
     var receiver = ast.receiver.visitExpression(this, ctx);
-    if (isDynamicInstance(receiver)) {
-      var di = (receiver as DynamicInstance);
-      if (di.props.containsKey(ast.name)) {
-        result = di.props[ast.name];
-      } else if (di.getters.containsKey(ast.name)) {
-        result = di.getters[ast.name]();
-      } else if (di.methods.containsKey(ast.name)) {
-        result = di.methods[ast.name];
+    return _readPropertyValue(receiver, ast.name);
+  }
+
+  dynamic _readPropertyValue(receiver, String name) {
+    var result;
+    if (receiver is DynamicInstance) {
+      if (receiver.props.containsKey(name)) {
+        result = receiver.props[name];
+      } else if (receiver.getters.containsKey(name)) {
+        result = receiver.getters[name]();
+      } else if (receiver.methods.containsKey(name)) {
+        result = receiver.methods[name];
       } else {
-        result = reflector.getter(ast.name)(receiver);
+        result = reflector.getter(name)(receiver);
       }
     } else {
-      result = reflector.getter(ast.name)(receiver);
+      result = reflector.getter(name)(receiver);
     }
     return result;
   }
@@ -555,3 +595,26 @@ Function _declareFn(List<String> varNames, List<o.Statement> statements,
 
 var CATCH_ERROR_VAR = "error";
 var CATCH_STACK_VAR = "stack";
+
+/// Initialize external identifiers that need to be interpreted.
+///
+/// Since Identifiers is used by compiler, runtime classes for dart:html
+/// need to be initialized before interpreting code such as new Text();
+///
+/// These classes cannot be imported into ngcodegen itself so we are linking
+/// them dynamically.
+void _initializeInterpreter() {
+  Identifiers.DebugAppView.runtime = DebugAppView;
+  Identifiers.AppView.runtime = AppView;
+  Identifiers.AppElement.runtime = AppElement;
+  Identifiers.StaticNodeDebugInfo.runtime = StaticNodeDebugInfo;
+  Identifiers.DebugContext.runtime = DebugContext;
+  Identifiers.TemplateRef.runtime = TemplateRef;
+  Identifiers.ViewContainerRef.runtime = ViewContainerRef;
+  Identifiers.ComponentFactory.runtime = ComponentFactory;
+  Identifiers.QueryList.runtime = QueryList;
+  Identifiers.HTML_COMMENT_NODE.runtime = Comment;
+  Identifiers.HTML_TEXT_NODE.runtime = Text;
+  Identifiers.HTML_DOCUMENT.runtime = document;
+  Identifiers.appViewUtils.runtime = appViewUtils;
+}

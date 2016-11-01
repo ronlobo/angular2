@@ -7,12 +7,12 @@ import "package:angular2/core.dart"
         DynamicComponentLoader,
         Injector,
         Injectable,
-        ViewMetadata,
+        View,
         ElementRef,
         ChangeDetectorRef;
-import "package:angular2/src/core/debug/debug_node.dart"
+import "package:angular2/src/core/linker/app_view_utils.dart";
+import "package:angular2/src/debug/debug_node.dart"
     show DebugElement, getDebugNode;
-import "package:angular2/src/core/linker/view_utils.dart";
 import "package:angular2/src/platform/dom/dom_adapter.dart" show DOM;
 import "package:angular2/src/platform/dom/dom_tokens.dart" show DOCUMENT;
 
@@ -52,7 +52,7 @@ class ComponentFixture {
 
   /// Trigger a change detection cycle for the component.
   void detectChanges([bool checkForNoChanges = true]) {
-    ViewUtils.resetChangeDetection();
+    AppViewUtils.resetChangeDetection();
     changeDetectorRef.detectChanges();
     if (checkForNoChanges) {
       checkNoChanges();
@@ -80,9 +80,9 @@ class TestComponentBuilder {
   var _directiveOverrides = new Map<Type, Map<Type, Type>>();
   var _templateOverrides = new Map<Type, String>();
   var _viewBindingsOverrides = new Map<Type, List<dynamic>>();
-  var _viewOverrides = new Map<Type, ViewMetadata>();
+  var _viewOverrides = new Map<Type, View>();
 
-  TestComponentBuilder(this._injector) {}
+  TestComponentBuilder(this._injector);
   TestComponentBuilder _clone() {
     var clone = new TestComponentBuilder(_injector);
     clone._viewOverrides = new Map.from(_viewOverrides);
@@ -93,23 +93,23 @@ class TestComponentBuilder {
     return clone;
   }
 
-  /// Overrides only the html of a [ComponentMetadata].
+  /// Overrides only the html of a [Component].
   ///
-  /// All the other properties of the component's [ViewMetadata] are preserved.
+  /// All the other properties of the component's [View] are preserved.
   TestComponentBuilder overrideTemplate(Type componentType, String template) {
     var clone = _clone();
     clone._templateOverrides[componentType] = template;
     return clone;
   }
 
-  /// Overrides a component's [ViewMetadata].
-  TestComponentBuilder overrideView(Type componentType, ViewMetadata view) {
+  /// Overrides a component's [View].
+  TestComponentBuilder overrideView(Type componentType, View view) {
     var clone = _clone();
     clone._viewOverrides[componentType] = view;
     return clone;
   }
 
-  /// Overrides the directives from the component [ViewMetadata].
+  /// Overrides the directives from the component [View].
   TestComponentBuilder overrideDirective(
       Type componentType, Type from, Type to) {
     var clone = _clone();
@@ -160,7 +160,7 @@ class TestComponentBuilder {
 
   /// Builds and returns a ComponentFixture.
   Future<ComponentFixture> createAsync(Type rootComponentType) {
-    ViewUtils.resetChangeDetection();
+    AppViewUtils.resetChangeDetection();
     var mockDirectiveResolver = _injector.get(DirectiveResolver);
     var mockViewResolver = _injector.get(ViewResolver);
     _viewOverrides
@@ -186,8 +186,10 @@ class TestComponentBuilder {
     }
     DOM.appendChild(doc.body, rootEl);
     DynamicComponentLoader loader = _injector.get(DynamicComponentLoader);
-    Future<ComponentRef> promise =
-        loader.loadAsRoot(rootComponentType, '''#${ rootElId}''', _injector);
+    appViewUtils = _injector.get(AppViewUtils);
+    Future<ComponentRef> promise = loader.loadAsRoot(
+        rootComponentType, _injector,
+        overrideSelector: '#${rootElId}');
     return promise.then((componentRef) {
       return new ComponentFixture(componentRef);
     });

@@ -1,11 +1,14 @@
-import "package:angular2/src/core/di.dart" show Injector;
-import "package:angular2/src/core/reflection/reflection.dart" show reflector;
+import 'dart:html';
 
-import "../change_detection/change_detection.dart" show ChangeDetectorRef;
-import "element.dart" show AppElement;
-import "element_ref.dart" show ElementRef;
-import "view_ref.dart" show ViewRef;
-import "view_utils.dart" show ViewUtils;
+import 'package:angular2/src/core/di.dart' show Injector;
+import 'package:angular2/src/core/reflection/reflection.dart' show reflector;
+
+import '../change_detection/change_detection.dart' show ChangeDetectorRef;
+import 'app_element.dart';
+import 'app_view.dart';
+import 'app_view_utils.dart' show OnDestroyCallback;
+import 'element_ref.dart' show ElementRef;
+import 'view_ref.dart' show ViewRef;
 
 /// Represents an instance of a Component created via a [ComponentFactory].
 ///
@@ -37,15 +40,15 @@ abstract class ComponentRef {
 
   /// Allows to register a callback that will be called when the component is
   /// destroyed.
-  void onDestroy(Function callback);
+  void onDestroy(OnDestroyCallback callback);
 }
 
-class ComponentRef_ extends ComponentRef {
+class ComponentRefImpl extends ComponentRef {
   final AppElement hostElement;
   final Type componentType;
   final List<dynamic> metadata;
 
-  ComponentRef_(this.hostElement, this.componentType, this.metadata);
+  ComponentRefImpl(this.hostElement, this.componentType, this.metadata);
 
   ElementRef get location => hostElement.elementRef;
 
@@ -61,14 +64,14 @@ class ComponentRef_ extends ComponentRef {
     hostElement.parentView.destroy();
   }
 
-  void onDestroy(Function callback) {
+  void onDestroy(OnDestroyCallback callback) {
     hostView.onDestroy(callback);
   }
 }
 
 class ComponentFactory {
   final String selector;
-  final Function _viewFactory;
+  final NgViewFactory _viewFactory;
   final Type _componentType;
   final List<dynamic /* Type | List < dynamic > */ > _metadataPairs;
   static ComponentFactory cloneWithMetadata(
@@ -86,26 +89,48 @@ class ComponentFactory {
 
   List get metadata {
     if (_metadataPairs == null) {
+      // TODO: investigate why we can't do this upstream.
       return reflector.annotations(_componentType);
     }
-    for (var i = 0; i < this._metadataPairs.length; i += 2) {
-      if (identical(this._metadataPairs[i], this._componentType)) {
-        return (this._metadataPairs[i + 1] as List);
+    int pairCount = _metadataPairs.length;
+    for (var i = 0; i < pairCount; i += 2) {
+      if (identical(_metadataPairs[i], _componentType)) {
+        return (_metadataPairs[i + 1] as List);
       }
     }
-    return [];
+    return const [];
   }
 
   /// Creates a new component.
   ComponentRef create(Injector injector,
-      [List<List<dynamic>> projectableNodes = null,
-      dynamic /* String | dynamic */ rootSelectorOrNode = null]) {
-    ViewUtils vu = injector.get(ViewUtils);
+      [List<List> projectableNodes, String selector]) {
+    projectableNodes ??= [];
+    // Note: Host views don't need a declarationAppElement!
+    AppView hostView = _viewFactory(injector, null);
+    var hostElement = hostView.create(projectableNodes, selector);
+    return new ComponentRefImpl(hostElement, this.componentType, this.metadata);
+  }
+
+  ComponentRef loadIntoNode(Injector injector,
+      [List<List<dynamic>> projectableNodes, Node node]) {
     projectableNodes ??= [];
 
     // Note: Host views don't need a declarationAppElement!
-    var hostView = this._viewFactory(vu, injector, null);
-    var hostElement = hostView.create(projectableNodes, rootSelectorOrNode);
-    return new ComponentRef_(hostElement, this.componentType, this.metadata);
+    AppView hostView = _viewFactory(injector, null);
+    var hostElement = hostView.create(projectableNodes, node);
+    return new ComponentRefImpl(hostElement, this.componentType, this.metadata);
   }
 }
+
+/// Angular Component Factory signature.
+///
+/// The compiler generates a viewFactory per component host using this signature
+/// to lazily create a RenderComponentType and create a new instance of the
+/// View class.
+///
+/// Example:
+///     AppView<dynamic> viewFactory_MyComponent_Host0... {
+///        renderType_MyComponent = viewUtils.createRenderComponentType(....);
+///        return new _View_MyComponent_Host0(parentInjector, declElement);
+///     }
+typedef AppView NgViewFactory(Injector injector, AppElement declarationElement);

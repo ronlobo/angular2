@@ -5,9 +5,8 @@ import "package:angular2/src/compiler/compile_metadata.dart"
 import "package:angular2/src/facade/async.dart" show EventEmitter;
 import "package:angular2/src/core/linker/view_type.dart" show ViewType;
 import "package:angular2/src/facade/exceptions.dart" show BaseException;
-import "package:angular2/src/compiler/output/output_interpreter.dart"
-    show InstanceFactory, DynamicInstance;
-import "package:angular2/src/compiler/util.dart" show MODULE_SUFFIX;
+import "package:angular2/src/compiler/output/dynamic_instance.dart";
+import "package:angular2/src/compiler/compiler_utils.dart" show MODULE_SUFFIX;
 import "package:angular2/src/compiler/output/output_ast.dart" as o;
 
 class ExternalClass {
@@ -16,7 +15,7 @@ class ExternalClass {
   ExternalClass(this.data) {
     this.changeable = data;
   }
-  someMethod(a) {
+  Map someMethod(a) {
     return {"param": a, "data": this.data};
   }
 }
@@ -233,9 +232,9 @@ List<o.Statement> codegenStmts = [
       "DynamicClass",
       o.importExpr(testDataIdentifier),
       [
-        new o.ClassField("dynamicProp", o.DYNAMIC_TYPE),
-        new o.ClassField("dynamicChangeable", o.DYNAMIC_TYPE),
-        new o.ClassField("closure", o.FUNCTION_TYPE)
+        new o.ClassField("dynamicProp", outputType: o.DYNAMIC_TYPE),
+        new o.ClassField("dynamicChangeable", outputType: o.DYNAMIC_TYPE),
+        new o.ClassField("closure", outputType: o.FUNCTION_TYPE)
       ],
       [
         new o.ClassGetter(
@@ -324,9 +323,7 @@ class _InterpretiveDynamicClass extends ExternalClass
   Map<String, Function> methods;
   _InterpretiveDynamicClass(
       List<dynamic> args, this.clazz, this.props, this.getters, this.methods)
-      : super(args[0]) {
-    /* super call moved to initializer */;
-  }
+      : super(args[0]);
   childMethod(a) {
     return this.methods["childMethod"](a);
   }

@@ -1,13 +1,13 @@
-@TestOn('browser')
+@TestOn('browser && !js')
 library angular2.test.common.directives.ng_switch_test;
 
-import "package:angular2/testing_internal.dart";
 import "package:angular2/core.dart" show Component;
 import "package:angular2/src/common/directives/ng_switch.dart"
     show NgSwitch, NgSwitchWhen, NgSwitchDefault;
+import "package:angular2/testing_internal.dart";
 import 'package:test/test.dart';
 
-main() {
+void main() {
   group("switch", () {
     group("switch value changes", () {
       test("should switch amongst when values", () async {

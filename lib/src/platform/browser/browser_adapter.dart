@@ -2,10 +2,13 @@
 library browser_adapter;
 
 import 'dart:html';
+import 'dart:js_util' as js_util;
+
 import 'package:angular2/platform/common_dom.dart' show setRootDomAdapter;
-import 'generic_browser_adapter.dart' show GenericBrowserDomAdapter;
 import 'package:angular2/src/facade/browser.dart';
 import 'package:js/js.dart';
+
+import 'generic_browser_adapter.dart' show GenericBrowserDomAdapter;
 
 // WARNING: Do not expose outside this class. Parsing HTML using this
 // sanitizer is a security risk.
@@ -104,100 +107,40 @@ final bool _supportsTemplateElement = () {
   }
 }();
 
-@JS()
-external void ngSetProperty(element, property, value);
-
-@JS()
-external dynamic ngGetProperty(element, property);
-
-@JS()
-external bool ngHasProperty(element, property);
-
-@JS()
-external void ngSetGlobalVar(String path, value);
-
 @JS('document.implementation.createHTMLDocument')
-external ngCreateDocument(value);
+external dynamic ngCreateDocument(value);
 
 class BrowserDomAdapter
     extends GenericBrowserDomAdapter<Element, Node, EventTarget> {
-  Map<String, bool> _hasPropertyCache;
-
-  static final String _bootScript =
-      '''window['ngSetProperty'] = function(el, prop, value) {
-          el[prop] = value;
-        }
-        window['ngGetProperty'] = function(el, prop) {
-          return el[prop];
-        };
-        window['ngHasProperty'] = function(el, prop) {
-          return prop in el;
-        };
-        window['ngSetGlobalVar'] = function(path, value) {
-          var parts = path.split('.');
-          var obj = window;
-          var i;
-          for (i = 0; i < (parts.length - 1); i++) {
-            var name = parts[0];
-            if (obj.hasOwnProperty(name)) {
-              obj = obj[name];
-            } else {
-              obj = obj[name] = {};
-            }
-          }
-          obj[parts[parts.length - 1]] = value;
-        }
-  ''';
-
-  BrowserDomAdapter() {
-    _hasPropertyCache = new Map();
-  }
-
   static void makeCurrent() {
-    var script = document.createElement("script");
-    script.setAttribute('type', 'text/javascript');
-    script.text = _bootScript;
-    document.body.append(script);
     setRootDomAdapter(new BrowserDomAdapter());
   }
 
-  bool hasProperty(Element element, String name) {
-    // Always return true as the serverside version html_adapter.dart does so.
-    // TODO: change this once we have schema support.
-    // Note: This nees to kept in sync with html_adapter.dart!
-    return true;
-  }
+  bool hasProperty(Element element, String name) =>
+      js_util.hasProperty(element, name);
 
   void setProperty(Element element, String name, Object value) {
-    var cacheKey = "${element.tagName}.${name}";
-    var hasProperty = _hasPropertyCache[cacheKey];
-    if (hasProperty == null) {
-      hasProperty = ngHasProperty(element, name);
-      this._hasPropertyCache[cacheKey] = hasProperty;
-    }
-    if (hasProperty) {
-      //_setProperty.apply([element, name, value]);
-      ngSetProperty(element, name, value);
-    }
+    js_util.setProperty(element, name, value);
   }
 
-  getProperty(Element element, String name) => ngGetProperty(element, name);
+  dynamic getProperty(Element element, String name) =>
+      js_util.getProperty(element, name);
 
   // TODO(tbosch): move this into a separate environment class once we have it
-  logError(error) {
+  void logError(error) {
     window.console.error(error);
   }
 
-  log(error) {
+  void log(error) {
     window.console.log(error);
   }
 
-  logGroup(error) {
+  void logGroup(error) {
     window.console.group(error);
     this.logError(error);
   }
 
-  logGroupEnd() {
+  void logGroupEnd() {
     window.console.groupEnd();
   }
 
@@ -245,7 +188,8 @@ class BrowserDomAdapter
   }
 
   String getInnerHTML(Element el) => el.innerHtml;
-  getTemplateContent(Element el) => el is TemplateElement ? el.content : null;
+  dynamic getTemplateContent(Element el) =>
+      el is TemplateElement ? el.content : null;
   String getOuterHTML(Element el) => el.outerHtml;
   void setInnerHTML(Element el, String value) {
     el.innerHtml = value;
@@ -314,7 +258,7 @@ class BrowserDomAdapter
     return new Comment(text);
   }
 
-  createTemplate(String html) {
+  dynamic createTemplate(String html) {
     var t = new TemplateElement();
     // We do not sanitize because templates are part of the application code
     // not user code.
@@ -336,7 +280,7 @@ class BrowserDomAdapter
     return new Text(text);
   }
 
-  createScriptTag(String attrName, String attrValue, [d = null]) {
+  dynamic createScriptTag(String attrName, String attrValue, [d = null]) {
     HtmlDocument doc = d ?? document;
     var el = doc.createElement('SCRIPT');
     el.setAttribute(attrName, attrValue);
@@ -477,21 +421,11 @@ class BrowserDomAdapter
         : 'Unidentified';
   }
 
-  getGlobalEventTarget(String target) {
-    if (target == "window") {
-      return window;
-    } else if (target == "document") {
-      return document;
-    } else if (target == "body") {
-      return document.body;
-    }
-  }
-
-  getHistory() {
+  dynamic getHistory() {
     return window.history;
   }
 
-  getLocation() {
+  dynamic getLocation() {
     return window.location;
   }
 
@@ -503,7 +437,7 @@ class BrowserDomAdapter
     return _relativePath(href);
   }
 
-  resetBaseElement() {
+  void resetBaseElement() {
     baseElement = null;
   }
 
@@ -519,21 +453,29 @@ class BrowserDomAdapter
     return element.dataset[name];
   }
 
-  getComputedStyle(elem) => elem.getComputedStyle();
+  dynamic getComputedStyle(elem) => elem.getComputedStyle();
 
-  setGlobalVar(String path, value) {
-    if (value is Function) {
-      ngSetGlobalVar(path, allowInterop(value));
-    } else {
-      ngSetGlobalVar(path, value);
+  void setGlobalVar(String path, value) {
+    var parts = path.split('.');
+    Object obj = window;
+    for (var i = 0; i < parts.length - 1; i++) {
+      var name = parts[i];
+      if (js_util.callMethod(obj, 'hasOwnProperty', [name])) {
+        obj = js_util.getProperty(obj, name);
+      } else {
+        js_util.setProperty(obj, name, js_util.newObject());
+        obj = js_util.getProperty(obj, name);
+      }
     }
+    js_util.setProperty(obj, parts[parts.length - 1],
+        (value is Function) ? allowInterop(value) : value);
   }
 
-  requestAnimationFrame(callback) {
+  num requestAnimationFrame(callback) {
     return window.requestAnimationFrame(callback as FrameRequestCallback);
   }
 
-  cancelAnimationFrame(id) {
+  void cancelAnimationFrame(id) {
     window.cancelAnimationFrame(id);
   }
 
@@ -541,12 +483,12 @@ class BrowserDomAdapter
     return window.performance.now();
   }
 
-  parse(s) {
+  void parse(s) {
     throw 'not implemented';
   }
 }
 
-var baseElement = null;
+var baseElement;
 String getBaseElementHref() {
   if (baseElement == null) {
     baseElement = document.querySelector('base');
@@ -558,7 +500,7 @@ String getBaseElementHref() {
 }
 
 // based on urlUtils.js in AngularJS 1
-AnchorElement _urlParsingNode = null;
+AnchorElement _urlParsingNode;
 String _relativePath(String url) {
   if (_urlParsingNode == null) {
     _urlParsingNode = new AnchorElement();

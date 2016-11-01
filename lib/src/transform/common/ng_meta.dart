@@ -81,7 +81,7 @@ class NgMeta {
 
   /// Parse from the serialized form produced by [toJson].
   factory NgMeta.fromJson(Map json) {
-    var ngDeps = null;
+    var ngDeps;
 
     if (json.containsKey(_NG_DEPS_KEY)) {
       var ngDepsJsonMap = json[_NG_DEPS_KEY];
@@ -139,7 +139,7 @@ class NgMeta {
   /// Returns the metadata for every type associated with the given [alias].
   List<dynamic> flatten(String alias) {
     var result = [];
-    helper(name, path) {
+    void helper(name, path) {
       final newPath = []
         ..addAll(path)
         ..add(name);
@@ -157,6 +157,7 @@ class NgMeta {
             'Unknown alias: ${newPath.join(' -> ')}. Make sure you export ${name} from the file where ${path.last} is defined.');
       }
     }
+
     helper(alias, []);
     return result;
   }

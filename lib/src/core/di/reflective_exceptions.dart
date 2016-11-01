@@ -1,9 +1,10 @@
 import "package:angular2/src/facade/exceptions.dart"
     show BaseException, WrappedException;
+
+import "decorators.dart";
+import "provider.dart";
 import "reflective_injector.dart" show ReflectiveInjector;
 import "reflective_key.dart" show ReflectiveKey;
-import "provider.dart";
-import "metadata.dart";
 
 List<dynamic> findFirstClosedCycle(List keys) {
   var res = [];
@@ -34,9 +35,8 @@ List<dynamic> findFirstClosedCycleReversed(List keys) {
 String constructResolvingPath(List<dynamic> keys) {
   if (keys.length > 1) {
     var reversed = findFirstClosedCycleReversed(keys);
-    var tokenStrs = reversed
-        .map((k) => '${InjectMetadata.tokenToString(k.token)}')
-        .toList();
+    var tokenStrs =
+        reversed.map((k) => '${Inject.tokenToString(k.token)}').toList();
     return " (" + tokenStrs.join(" -> ") + ")";
   } else {
     return "";
@@ -52,7 +52,6 @@ class AbstractProviderError extends BaseException {
   AbstractProviderError(ReflectiveInjector injector, ReflectiveKey key,
       Function constructResolvingMessage)
       : super("DI Exception") {
-    /* super call moved to initializer */;
     this.keys = [key];
     this.injectors = [injector];
     this.constructResolvingMessage = constructResolvingMessage;
@@ -64,7 +63,7 @@ class AbstractProviderError extends BaseException {
     this.message = this.constructResolvingMessage(this.keys);
   }
 
-  get context {
+  dynamic get context {
     return injectors.last.debugContext();
   }
 }
@@ -81,8 +80,8 @@ class AbstractProviderError extends BaseException {
 class NoProviderError extends AbstractProviderError {
   NoProviderError(ReflectiveInjector injector, ReflectiveKey key)
       : super(injector, key, (List<dynamic> keys) {
-          var first = '${InjectMetadata.tokenToString(keys.first.token)}';
-          return '''No provider for ${ first}!${ constructResolvingPath ( keys )}''';
+          var first = '${Inject.tokenToString(keys.first.token)}';
+          return 'No provider for ${first}!${constructResolvingPath(keys)}';
         });
 }
 
@@ -112,24 +111,27 @@ class CyclicDependencyError extends AbstractProviderError {
 /// The [InstantiationError] class contains the original error plus the
 /// dependency graph which caused this object to be instantiated.
 ///
-/// ### Example ([live demo](http://plnkr.co/edit/7aWYdcqTQsP0eNqEdUAf?p=preview))
+/// ### Example
 ///
-/// ```typescript
+/// ```dart
 /// class A {
-///   constructor() {
-///     throw new Error('message');
+///   A() {
+///     throw new Exception('message');
 ///   }
 /// }
 ///
-/// var injector = Injector.resolveAndCreate([A]);
+/// void main() {
+///   Injector injector = ReflectiveInjector.resolveAndCreate([A]);
 ///
-/// try {
-///   injector.get(A);
-/// } catch (e) {
-///   expect(e instanceof InstantiationError).toBe(true);
-///   expect(e.originalException.message).toEqual("message");
-///   expect(e.originalStack).toBeDefined();
+///   try {
+///     injector.get(A);
+///   } catch (e) {
+///     expect(e, new isInstanceOf<InstantiationError>());
+///     expect(e.originalException.message, equals('message'));
+///     expect(e.originalStack, isNotNull);
+///   }
 /// }
+/// ```
 ///
 class InstantiationError extends WrappedException {
   List<ReflectiveKey> keys;
@@ -138,7 +140,6 @@ class InstantiationError extends WrappedException {
   InstantiationError(ReflectiveInjector injector, originalException,
       originalStack, ReflectiveKey key)
       : super("DI Exception", originalException, originalStack, null) {
-    /* super call moved to initializer */;
     this.keys = [key];
     this.injectors = [injector];
   }
@@ -148,14 +149,14 @@ class InstantiationError extends WrappedException {
   }
 
   String get wrapperMessage => 'Error during instantiation of '
-      '${InjectMetadata.tokenToString(keys.first.token)}!'
+      '${Inject.tokenToString(keys.first.token)}!'
       '${constructResolvingPath(keys)}.';
 
   ReflectiveKey get causeKey {
     return this.keys[0];
   }
 
-  get context {
+  dynamic get context {
     return this.injectors[this.injectors.length - 1].debugContext();
   }
 }
@@ -206,20 +207,18 @@ class NoAnnotationError extends BaseException {
   NoAnnotationError(typeOrFunc, List<List<dynamic>> params)
       : super(NoAnnotationError._genMessage(typeOrFunc, params));
 
-  static _genMessage(typeOrFunc, List<List<dynamic>> params) {
+  static String _genMessage(typeOrFunc, List<List<dynamic>> params) {
     var signature = [];
     for (var i = 0, ii = params.length; i < ii; i++) {
       var parameter = params[i];
       if (parameter == null || parameter.length == 0) {
         signature.add("?");
       } else {
-        signature.add(parameter
-            .map((x) => InjectMetadata.tokenToString(x))
-            .toList()
-            .join(" "));
+        signature.add(
+            parameter.map((x) => Inject.tokenToString(x)).toList().join(" "));
       }
     }
-    String typeStr = InjectMetadata.tokenToString(typeOrFunc);
+    String typeStr = Inject.tokenToString(typeOrFunc);
     return "Cannot resolve all parameters for '$typeStr'(" +
         signature.join(", ") +
         "). " +
@@ -240,9 +239,7 @@ class NoAnnotationError extends BaseException {
 /// expect(() => injector.getAt(100), throws);
 ///
 class OutOfBoundsError extends BaseException {
-  OutOfBoundsError(index) : super('''Index ${ index} is out-of-bounds.''') {
-    /* super call moved to initializer */;
-  }
+  OutOfBoundsError(index) : super('''Index ${ index} is out-of-bounds.''');
 }
 // TODO: add a working example after alpha38 is released
 

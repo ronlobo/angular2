@@ -1,15 +1,16 @@
 library angular2.test.compiler.html_parser_test;
 
+import "package:angular2/src/compiler/html_ast.dart";
 import "package:angular2/src/compiler/html_lexer.dart" show HtmlTokenType;
 import "package:angular2/src/compiler/html_parser.dart"
     show HtmlParser, HtmlParseTreeResult, HtmlTreeError;
-import "package:angular2/src/compiler/html_ast.dart";
 import "package:angular2/src/compiler/parse_util.dart" show ParseError;
-import "html_ast_spec_utils.dart"
-    show humanizeDom, humanizeDomSourceSpans, humanizeLineColumn;
 import 'package:test/test.dart';
 
-main() {
+import "html_ast_spec_utils.dart"
+    show humanizeDom, humanizeDomSourceSpans, humanizeLineColumn;
+
+void main() {
   group("HtmlParser", () {
     HtmlParser parser;
     setUp(() {
@@ -284,7 +285,7 @@ main() {
             [HtmlExpansionCaseAst, "1"],
             [HtmlTextAst, "after", 1]
           ]);
-          var cases = ((parsed.rootNodes[0] as dynamic)).children[1].cases;
+          var cases = (parsed.rootNodes[0] as dynamic).children[1].cases;
           expect(
               humanizeDom(new HtmlParseTreeResult(cases[0].expression, [])), [
             [HtmlTextAst, "You have ", 0],
@@ -306,7 +307,7 @@ main() {
             [HtmlExpansionAst, "messages.length", "plural"],
             [HtmlExpansionCaseAst, "0"]
           ]);
-          var firstCase = ((parsed.rootNodes[0] as dynamic)).cases[0];
+          var firstCase = (parsed.rootNodes[0] as dynamic).cases[0];
           expect(
               humanizeDom(new HtmlParseTreeResult(firstCase.expression, [])), [
             [HtmlExpansionAst, "p.gender", "gender"],

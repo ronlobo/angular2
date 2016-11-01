@@ -1,9 +1,6 @@
 import "dart:async";
 
-import "package:angular2/src/facade/async.dart" show PromiseWrapper;
 import "package:angular2/src/facade/exceptions.dart" show BaseException;
-import "package:angular2/src/facade/lang.dart"
-    show isBlank, isPresent, isFunction;
 
 import "../instruction.dart" show ComponentInstruction;
 import "../route_config/route_config_impl.dart"
@@ -18,11 +15,9 @@ import "route_paths/route_path.dart" show RoutePath;
 import "rules.dart"
     show AbstractRule, RouteRule, RedirectRule, RouteMatch, PathMatch;
 
-/**
- * A `RuleSet` is responsible for recognizing routes for a particular component.
- * It is consumed by `RouteRegistry`, which knows how to recognize an entire hierarchy of
- * components.
- */
+/// A `RuleSet` is responsible for recognizing routes for a particular component.
+/// It is consumed by `RouteRegistry`, which knows how to recognize an entire hierarchy of
+/// components.
 class RuleSet {
   var rulesByName = new Map<String, RouteRule>();
   // map from name to rule
@@ -32,15 +27,12 @@ class RuleSet {
   // TODO: optimize this into a trie
   List<AbstractRule> rules = [];
   // the rule to use automatically when recognizing or generating from this rule set
-  RouteRule defaultRule = null;
-  /**
-   * Configure additional rules in this rule set from a route definition
-   * 
-   */
+  RouteRule defaultRule;
+
+  /// Configure additional rules in this rule set from a route definition
   bool config(RouteDefinition config) {
     var handler;
-    if (isPresent(config.name) &&
-        config.name[0].toUpperCase() != config.name[0]) {
+    if (config.name != null && config.name[0].toUpperCase() != config.name[0]) {
       var suggestedName =
           config.name[0].toUpperCase() + config.name.substring(1);
       throw new BaseException(
@@ -52,7 +44,7 @@ class RuleSet {
       var routePath = this._getRoutePath(config);
       var auxRule = new RouteRule(routePath, handler, config.name);
       this.auxRulesByPath[routePath.toString()] = auxRule;
-      if (isPresent(config.name)) {
+      if (config.name != null) {
         this.auxRulesByName[config.name] = auxRule;
       }
       return auxRule.terminal;
@@ -68,56 +60,52 @@ class RuleSet {
     if (config is Route) {
       handler = new SyncRouteHandler(
           config.component, config.data as Map<String, dynamic>);
-      useAsDefault = isPresent(config.useAsDefault) && config.useAsDefault;
+      useAsDefault = config.useAsDefault != null && config.useAsDefault;
     } else if (config is AsyncRoute) {
       handler = new AsyncRouteHandler(
           config.loader, config.data as Map<String, dynamic>);
-      useAsDefault = isPresent(config.useAsDefault) && config.useAsDefault;
+      useAsDefault = config.useAsDefault != null && config.useAsDefault;
     }
     var routePath = this._getRoutePath(config);
     var newRule = new RouteRule(routePath, handler, config.name);
     this._assertNoHashCollision(newRule.hash, config.path);
     if (useAsDefault) {
-      if (isPresent(this.defaultRule)) {
+      if (defaultRule != null) {
         throw new BaseException('''Only one route can be default''');
       }
       this.defaultRule = newRule;
     }
     this.rules.add(newRule);
-    if (isPresent(config.name)) {
+    if (config.name != null) {
       this.rulesByName[config.name] = newRule;
     }
     return newRule.terminal;
   }
 
-  /**
-   * Given a URL, returns a list of `RouteMatch`es, which are partial recognitions for some route.
-   */
+  /// Given a URL, returns a list of `RouteMatch`es, which are partial recognitions for some route.
   List<Future<RouteMatch>> recognize(Url urlParse) {
     var solutions = <Future<RouteMatch>>[];
     this.rules.forEach((AbstractRule routeRecognizer) {
       var pathMatch = routeRecognizer.recognize(urlParse);
-      if (isPresent(pathMatch)) {
+      if (pathMatch != null) {
         solutions.add(pathMatch);
       }
     });
     // handle cases where we are routing just to an aux route
     if (solutions.length == 0 &&
-        isPresent(urlParse) &&
+        urlParse != null &&
         urlParse.auxiliary.length > 0) {
-      return [
-        PromiseWrapper.resolve(new PathMatch(null, null, urlParse.auxiliary))
-      ];
+      return [new Future.value(new PathMatch(null, null, urlParse.auxiliary))];
     }
     return solutions;
   }
 
   List<Future<RouteMatch>> recognizeAuxiliary(Url urlParse) {
     RouteRule routeRecognizer = this.auxRulesByPath[urlParse.path];
-    if (isPresent(routeRecognizer)) {
+    if (routeRecognizer != null) {
       return [routeRecognizer.recognize(urlParse)];
     }
-    return [PromiseWrapper.resolve(null)];
+    return [new Future.value(null)];
   }
 
   bool hasRoute(String name) {
@@ -125,8 +113,7 @@ class RuleSet {
   }
 
   bool componentLoaded(String name) {
-    return this.hasRoute(name) &&
-        isPresent(this.rulesByName[name].handler.componentType);
+    return hasRoute(name) && rulesByName[name].handler.componentType != null;
   }
 
   Future<dynamic> loadComponent(String name) {
@@ -141,13 +128,10 @@ class RuleSet {
   ComponentInstruction generateAuxiliary(
       String name, Map<String, dynamic> params) {
     RouteRule rule = this.auxRulesByName[name];
-    if (isBlank(rule)) {
-      return null;
-    }
-    return rule.generate(params);
+    return rule?.generate(params);
   }
 
-  _assertNoHashCollision(String hash, path) {
+  void _assertNoHashCollision(String hash, path) {
     this.rules.forEach((rule) {
       if (hash == rule.hash) {
         throw new BaseException(
@@ -157,8 +141,8 @@ class RuleSet {
   }
 
   RoutePath _getRoutePath(RouteDefinition config) {
-    if (isPresent(config.regex)) {
-      if (isFunction(config.serializer)) {
+    if (config.regex != null) {
+      if (config.serializer is Function) {
         return new RegexRoutePath(
             config.regex, config.serializer as RegexSerializer);
       } else {
@@ -166,7 +150,7 @@ class RuleSet {
             '''Route provides a regex property, \'${ config . regex}\', but no serializer property''');
       }
     }
-    if (isPresent(config.path)) {
+    if (config.path != null) {
       // Auxiliary routes do not have a slash at the start
       var path = (config is AuxRoute && config.path.startsWith("/"))
           ? config.path.substring(1)

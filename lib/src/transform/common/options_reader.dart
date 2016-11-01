@@ -40,7 +40,7 @@ TransformerOptions parseBarbackSettings(BarbackSettings settings) {
       mirrorMode = MirrorMode.none;
       break;
   }
-  return new TransformerOptions(entryPoints,
+  var transformerOptions = new TransformerOptions(entryPoints,
       modeName: settings.mode.name,
       mirrorMode: mirrorMode,
       initReflector: initReflector,
@@ -56,6 +56,33 @@ TransformerOptions parseBarbackSettings(BarbackSettings settings) {
           _readBool(config, LAZY_TRANSFORMERS, defaultValue: false),
       translations: _readAssetId(config, TRANSLATIONS),
       formatCode: formatCode);
+
+  _checkEntryPointsExist(transformerOptions);
+  return transformerOptions;
+}
+
+/// Print an error message when an `entryPointsGlobs` value doesn't resolve to
+/// at least one file.
+void _checkEntryPointsExist(TransformerOptions transformerOptions) {
+  final invalidEntryPoints = [];
+  if (transformerOptions.entryPointGlobs != null) {
+    for (var entryPointGlob in transformerOptions.entryPointGlobs) {
+      try {
+        if (entryPointGlob.listSync().isEmpty) {
+          invalidEntryPoints.add('$entryPointGlob');
+        }
+      } on FileSystemException catch (_) {
+        invalidEntryPoints.add('$entryPointGlob');
+      }
+    }
+    if (invalidEntryPoints.isNotEmpty) {
+      stderr.writeln('No matching file found for the following Angular2 '
+          'transformer entry_points:');
+      for (var glob in invalidEntryPoints) {
+        stderr.writeln('  - $glob');
+      }
+    }
+  }
 }
 
 bool _readBool(Map config, String paramName, {bool defaultValue}) {

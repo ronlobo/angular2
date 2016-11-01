@@ -18,6 +18,7 @@ const MIRROR_MODE_PARAM = 'mirror_mode';
 const CODEGEN_MODE_PARAM = 'codegen_mode';
 const LAZY_TRANSFORMERS = 'lazy_transformers';
 const TRANSLATIONS = 'translations';
+const IGNORE_REAL_TEMPLATE_ISSUES_PARAM = 'ignore_real_template_issues';
 
 const CODEGEN_DEBUG_MODE = 'debug';
 
@@ -98,6 +99,14 @@ class TransformerOptions {
   /// The path to the file with translations.
   final AssetId translations;
 
+  /// Whether to ignore analyzer errors and warnings in generated templates that
+  /// are the result of an invalid template.
+  final bool ignoreRealTemplateIssues;
+
+  /// Whether to warn about hand-coding the deferred import initialization
+  /// logic, instead of relying on the angular2/transform/deferred_rewriter.
+  final bool checkDeferredImportInitialization;
+
   TransformerOptions._internal(
       this.entryPoints,
       this.entryPointGlobs,
@@ -115,7 +124,9 @@ class TransformerOptions {
       this.resolvedIdentifiers,
       this.errorOnMissingIdentifiers,
       this.translations,
-      this.reflectPropertiesAsAttributes});
+      this.reflectPropertiesAsAttributes,
+      this.ignoreRealTemplateIssues,
+      this.checkDeferredImportInitialization});
 
   factory TransformerOptions(List<String> entryPoints,
       {String modeName: 'release',
@@ -132,7 +143,9 @@ class TransformerOptions {
       Map<String, String> resolvedIdentifiers,
       bool lazyTransformers: false,
       AssetId translations: null,
-      bool formatCode: false}) {
+      bool formatCode: false,
+      bool ignoreRealTemplateIssues: false,
+      bool checkDeferredImportInitialization: false}) {
     var annotationMatcher = new AnnotationMatcher()
       ..addAll(customAnnotationDescriptors);
     var entryPointGlobs = entryPoints != null
@@ -151,6 +164,8 @@ class TransformerOptions {
         inlineViews: inlineViews,
         lazyTransformers: lazyTransformers,
         translations: translations,
-        formatCode: formatCode);
+        formatCode: formatCode,
+        ignoreRealTemplateIssues: ignoreRealTemplateIssues,
+        checkDeferredImportInitialization: checkDeferredImportInitialization);
   }
 }

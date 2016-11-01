@@ -15,34 +15,32 @@ class _ArrayLogger {
     this.res.add(s);
   }
 
-  logGroupEnd() {}
+  void logGroupEnd() {}
 }
 
-/**
- * Provides a hook for centralized exception handling.
- *
- * The default implementation of `ExceptionHandler` prints error messages to the `Console`. To
- * intercept error handling,
- * write a custom exception handler that replaces this default as appropriate for your app.
- *
- * ### Example
- *
- * ```javascript
- *
- * class MyExceptionHandler implements ExceptionHandler {
- *   call(error, stackTrace = null, reason = null) {
- *     // do something with the exception
- *   }
- * }
- *
- * bootstrap(MyApp, [provide(ExceptionHandler, {useClass: MyExceptionHandler})])
- *
- * ```
- */
+/// Provides a hook for centralized exception handling.
+///
+/// The default implementation of `ExceptionHandler` prints error messages to the `Console`. To
+/// intercept error handling,
+/// write a custom exception handler that replaces this default as appropriate for your app.
+///
+/// ### Example
+///
+/// ```javascript
+///
+/// class MyExceptionHandler implements ExceptionHandler {
+///   call(error, stackTrace = null, reason = null) {
+///     // do something with the exception
+///   }
+/// }
+///
+/// bootstrap(MyApp, [provide(ExceptionHandler, {useClass: MyExceptionHandler})])
+///
+/// ```
 class ExceptionHandler {
   dynamic _logger;
   bool _rethrowException;
-  ExceptionHandler(this._logger, [this._rethrowException = true]) {}
+  ExceptionHandler(this._logger, [this._rethrowException = true]);
   static String exceptionToString(dynamic exception,
       [dynamic stackTrace = null, String reason = null]) {
     var l = new _ArrayLogger();

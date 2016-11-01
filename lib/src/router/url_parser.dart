@@ -1,14 +1,11 @@
-import "package:angular2/src/facade/collection.dart" show StringMapWrapper;
 import "package:angular2/src/facade/exceptions.dart" show BaseException;
-import "package:angular2/src/facade/lang.dart"
-    show isPresent, isBlank, RegExpWrapper;
 
 List<String> convertUrlParamsToArray(Map<String, dynamic> urlParams) {
   var paramsArray = <String>[];
-  if (isBlank(urlParams)) {
+  if (urlParams == null) {
     return [];
   }
-  StringMapWrapper.forEach(urlParams, (value, key) {
+  urlParams.forEach((key, value) {
     paramsArray.add((identical(value, true)) ? key : key + "=" + value);
   });
   return paramsArray;
@@ -19,16 +16,14 @@ String serializeParams(Map<String, dynamic> urlParams, [joiner = "&"]) {
   return convertUrlParamsToArray(urlParams).join(joiner);
 }
 
-/**
- * This class represents a parsed URL
- */
+/// This class represents a parsed URL
 class Url {
   String path;
   Url child;
   List<Url> auxiliary;
   Map<String, dynamic> params;
   Url(this.path,
-      [this.child = null, this.auxiliary = const [], this.params = const {}]) {}
+      [this.child = null, this.auxiliary = const [], this.params = const {}]);
   String toString() {
     return this.path +
         this._matrixParamsToString() +
@@ -63,7 +58,7 @@ class Url {
 
   /** @internal */
   String _childString() {
-    return isPresent(this.child) ? ("/" + this.child.toString()) : "";
+    return this.child != null ? ("/" + this.child.toString()) : "";
   }
 }
 
@@ -72,9 +67,7 @@ class RootUrl extends Url {
       [Url child = null,
       List<Url> auxiliary = const [],
       Map<String, dynamic> params = null])
-      : super(path, child, auxiliary, params) {
-    /* super call moved to initializer */;
-  }
+      : super(path, child, auxiliary, params);
   String toString() {
     return this.path +
         this._auxToString() +
@@ -86,12 +79,8 @@ class RootUrl extends Url {
     return this.path + this._queryParamsToString();
   }
 
-  String _queryParamsToString() {
-    if (isBlank(this.params)) {
-      return "";
-    }
-    return "?" + serializeParams(this.params);
-  }
+  String _queryParamsToString() =>
+      params == null ? '' : '?${serializeParams(params)}';
 }
 
 Url pathSegmentsToUrl(List<String> pathSegments) {
@@ -102,16 +91,16 @@ Url pathSegmentsToUrl(List<String> pathSegments) {
   return url;
 }
 
-var SEGMENT_RE = RegExpWrapper.create("^[^\\/\\(\\)\\?;=&#]+");
+final RegExp SEGMENT_RE = new RegExp("^[^\\/\\(\\)\\?;=&#]+");
 String matchUrlSegment(String str) {
-  var match = RegExpWrapper.firstMatch(SEGMENT_RE, str);
-  return isPresent(match) ? match[0] : "";
+  var match = SEGMENT_RE.firstMatch(str);
+  return match != null ? match[0] : "";
 }
 
-var QUERY_PARAM_VALUE_RE = RegExpWrapper.create("^[^\\(\\)\\?;&#]+");
+final RegExp QUERY_PARAM_VALUE_RE = new RegExp("^[^\\(\\)\\?;&#]+");
 String matchUrlQueryParamValue(String str) {
-  var match = RegExpWrapper.firstMatch(QUERY_PARAM_VALUE_RE, str);
-  return isPresent(match) ? match[0] : "";
+  var match = QUERY_PARAM_VALUE_RE.firstMatch(str);
+  return match != null ? match[0] : "";
 }
 
 class UrlParser {
@@ -150,12 +139,12 @@ class UrlParser {
       // TODO: should these params just be dropped?
       this.parseMatrixParams();
     }
-    var child = null;
+    var child;
     if (this.peekStartsWith("/") && !this.peekStartsWith("//")) {
       this.capture("/");
       child = this.parseSegment();
     }
-    Map<String, dynamic> queryParams = null;
+    Map<String, dynamic> queryParams;
     if (this.peekStartsWith("?")) {
       queryParams = this.parseQueryParams();
     }
@@ -172,7 +161,7 @@ class UrlParser {
     }
     var path = matchUrlSegment(this._remaining);
     this.capture(path);
-    Map<String, dynamic> matrixParams = null;
+    Map<String, dynamic> matrixParams;
     if (this.peekStartsWith(";")) {
       matrixParams = this.parseMatrixParams();
     }
@@ -180,7 +169,7 @@ class UrlParser {
     if (this.peekStartsWith("(")) {
       aux = this.parseAuxiliaryRoutes();
     }
-    Url child = null;
+    Url child;
     if (this.peekStartsWith("/") && !this.peekStartsWith("//")) {
       this.capture("/");
       child = this.parseSegment();
@@ -210,7 +199,7 @@ class UrlParser {
 
   void parseParam(Map<String, dynamic> params) {
     var key = matchUrlSegment(this._remaining);
-    if (isBlank(key)) {
+    if (key == null) {
       return;
     }
     this.capture(key);
@@ -218,7 +207,7 @@ class UrlParser {
     if (this.peekStartsWith("=")) {
       this.capture("=");
       var valueMatch = matchUrlSegment(this._remaining);
-      if (isPresent(valueMatch)) {
+      if (valueMatch != null) {
         value = valueMatch;
         this.capture(value);
       }
@@ -228,7 +217,7 @@ class UrlParser {
 
   void parseQueryParam(Map<String, dynamic> params) {
     var key = matchUrlSegment(this._remaining);
-    if (isBlank(key)) {
+    if (key == null) {
       return;
     }
     this.capture(key);
@@ -236,7 +225,7 @@ class UrlParser {
     if (this.peekStartsWith("=")) {
       this.capture("=");
       var valueMatch = matchUrlQueryParamValue(this._remaining);
-      if (isPresent(valueMatch)) {
+      if (valueMatch != null) {
         value = valueMatch;
         this.capture(value);
       }

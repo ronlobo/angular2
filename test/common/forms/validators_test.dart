@@ -2,17 +2,18 @@
 library angular2.test.common.forms.validators_spec;
 
 import "dart:async";
-import "package:angular2/testing_internal.dart";
+
 import "package:angular2/common.dart" show Control, Validators, AbstractControl;
-import "package:angular2/src/facade/promise.dart" show PromiseWrapper;
-import "package:angular2/src/facade/async.dart"
-    show EventEmitter, ObservableWrapper, TimerWrapper;
+import "package:angular2/src/facade/async.dart" show EventEmitter;
+import "package:angular2/testing_internal.dart";
 import 'package:test/test.dart';
 
-main() {
+typedef Future AsyncValidatorFunction(AbstractControl ac);
+
+void main() {
   var validator = (String key, dynamic error) {
     return (AbstractControl c) {
-      var r = {};
+      var r = <String, dynamic>{};
       r[key] = error;
       return r;
     };
@@ -105,24 +106,23 @@ main() {
       });
     });
     group("composeAsync", () {
-      asyncValidator(expected, response) {
+      AsyncValidatorFunction asyncValidator(expected, response) {
         return (c) {
           var emitter = new EventEmitter();
           var res = c.value != expected ? response : null;
-          PromiseWrapper.scheduleMicrotask(() {
-            ObservableWrapper.callEmit(emitter, res);
-            // this is required because of a bug in ObservableWrapper
-
+          scheduleMicrotask(() {
+            emitter.add(res);
+            // this _was_ required because of a bug in ObservableWrapper
             // where callComplete can fire before callEmit
-
             // remove this one the bug is fixed
-            TimerWrapper.setTimeout(() {
-              ObservableWrapper.callComplete(emitter);
-            }, 0);
+            Timer.run(() {
+              emitter.close();
+            });
           });
           return emitter;
         };
       }
+
       test("should return null when given null", () {
         expect(Validators.composeAsync(null), null);
       });
@@ -131,8 +131,8 @@ main() {
           asyncValidator("expected", {"one": true}),
           asyncValidator("expected", {"two": true})
         ]);
-        var value = null;
-        ((c(new Control("invalid")) as Future<dynamic>)).then((v) => value = v);
+        var value;
+        ((c(new Control("invalid")))).then((v) => value = v);
         tick(1);
         expect(value, {"one": true, "two": true});
       }));
@@ -140,9 +140,8 @@ main() {
         var c = Validators.composeAsync([
           asyncValidator("expected", {"one": true})
         ]);
-        var value = null;
-        ((c(new Control("expected")) as Future<dynamic>))
-            .then((v) => value = v);
+        var value;
+        c(new Control("expected")).then((v) => value = v);
         tick(1);
         expect(value, null);
       }));
@@ -151,8 +150,8 @@ main() {
           asyncValidator("expected", {"one": true}),
           null
         ]);
-        var value = null;
-        ((c(new Control("invalid")) as Future<dynamic>)).then((v) => value = v);
+        var value;
+        c(new Control("invalid")).then((v) => value = v);
         tick(1);
         expect(value, {"one": true});
       }));

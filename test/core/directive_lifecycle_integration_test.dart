@@ -1,7 +1,6 @@
-@TestOn('browser')
+@TestOn('browser && !js')
 library angular2.test.core.directive_lifecycle_integration_test;
 
-import "package:angular2/testing_internal.dart";
 import "package:angular2/core.dart"
     show
         OnChanges,
@@ -12,10 +11,11 @@ import "package:angular2/core.dart"
         AfterViewInit,
         AfterViewChecked;
 import "package:angular2/src/core/metadata.dart"
-    show Directive, Component, ViewMetadata;
+    show Directive, Component, View;
+import "package:angular2/testing_internal.dart";
 import 'package:test/test.dart';
 
-main() {
+void main() {
   group("directive lifecycle integration spec", () {
     test(
         'should invoke lifecycle methods ngOnChanges > '
@@ -25,7 +25,7 @@ main() {
         tcb
             .overrideView(
                 MyComp,
-                new ViewMetadata(
+                new View(
                     template: "<div [field]=\"123\" lifecycle></div>",
                     directives: [LifecycleCmp]))
             .createAsync(MyComp)
@@ -52,7 +52,7 @@ main() {
 @Directive(selector: "[lifecycle-dir]")
 class LifecycleDir implements DoCheck {
   Log _log;
-  LifecycleDir(this._log) {}
+  LifecycleDir(this._log);
   ngDoCheck() {
     this._log.add("child_ngDoCheck");
   }
@@ -74,7 +74,7 @@ class LifecycleCmp
         AfterViewChecked {
   Log _log;
   var field;
-  LifecycleCmp(this._log) {}
+  LifecycleCmp(this._log);
   ngOnChanges(_) {
     this._log.add("ngOnChanges");
   }

@@ -1,32 +1,40 @@
 name: angular2
-version: 2.0.0-beta.20
-author: Angular Dart Team <angular2@dartlang.org>
+version: 2.0.0
+author: Dart Team <web@dartlang.org>
 description: Framework for modern web applications
-homepage: 'https://github.com/dart-lang/angular2'
+homepage: 'https://angulardart.org'
+documentation: 'https://angular.io/docs/dart/latest/api/'
 environment:
-  sdk: '>=1.10.0 <2.0.0'
+  sdk: '>=1.19.0 <2.0.0'
 dependencies:
-  analyzer: '>=0.24.4 <0.28.0'
+  analyzer: '>=0.27.0 <0.30.0'
   barback: ^0.15.2+2
-  build: ^0.3.0
+  build: '>=0.3.0 <0.5.0'
   dart_style: '>=0.1.8 <0.3.0'
   glob: ^1.0.0
-  html: ^0.12.0
-  intl: ^0.13.0
+  html: '>=0.12.0 <0.14.0'
+  intl: '>=0.13.0 <0.15.0'
   logging: '>=0.9.0 <0.12.0'
-  observe: ^0.13.1
+  observable: ^0.14.0+1
   path: ^1.0.0
   protobuf: ^0.5.1
   source_span: ^1.0.0
   stack_trace: ^1.6.5
   js: ^0.6.0
 dev_dependencies:
-  mockito: '>=0.11.0'
-  quiver: ^0.21.4
+  func: ^0.1.0
+  mockito: '>=0.11.0 <2.0.0'
+  quiver: '>=0.21.4 <0.24.0'
   test: ^0.12.6
   transformer_test: ^0.2.0
 transformers:
+  - test/pub_serve:
+      $include: test/**_test.dart
   - angular2/transform/codegen
+  - angular2/transform/reflection_remover:
+      $include:
+          - test/testing/ng_test_bed_test.dart
+          - test/security/safe_inner_html_test.dart
   - $dart2js:
       commandLineOptions:
         - '--show-package-warnings'

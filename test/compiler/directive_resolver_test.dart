@@ -1,11 +1,11 @@
 @TestOn('browser')
 library angular2.test.compiler.directive_resolver_test;
 
-import 'package:angular2/testing_internal.dart';
 import 'package:angular2/src/compiler/directive_resolver.dart'
     show DirectiveResolver;
-import 'package:angular2/src/facade/lang.dart' show stringify;
 import 'package:angular2/src/core/metadata.dart';
+import 'package:angular2/src/facade/lang.dart' show stringify;
+import 'package:angular2/testing_internal.dart';
 import 'package:test/test.dart';
 
 @Directive(selector: 'someDirective')
@@ -38,10 +38,10 @@ class SomeDirectiveWithDuplicateOutputs {
   var a;
 }
 
-@Directive(selector: 'someDirective', properties: const ['a'])
+@Directive(selector: 'someDirective', inputs: const ['a'])
 class SomeDirectiveWithProperties {}
 
-@Directive(selector: 'someDirective', events: const ['a'])
+@Directive(selector: 'someDirective', outputs: const ['a'])
 class SomeDirectiveWithEvents {}
 
 @Directive(selector: 'someDirective')
@@ -110,7 +110,7 @@ class SomeDirectiveWithViewChild {
 
 class SomeDirectiveWithoutMetadata {}
 
-main() {
+void main() {
   group('DirectiveResolver', () {
     DirectiveResolver resolver;
     setUp(() async {
@@ -118,7 +118,7 @@ main() {
       await inject([], () {});
     });
     test('should read out the Directive metadata', () {
-      DirectiveMetadata directiveMetadata = resolver.resolve(SomeDirective);
+      Directive directiveMetadata = resolver.resolve(SomeDirective);
       expect(directiveMetadata.selector, 'someDirective');
     });
     test('should throw if not matching metadata is found', () {

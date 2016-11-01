@@ -1,7 +1,7 @@
 import 'dart:html';
 import 'dart:js' as js;
 
-import 'package:angular2/core.dart';
+import 'package:angular2/di.dart';
 import 'package:angular2/platform/common_dom.dart';
 
 // Work around http://dartbug.com/17752, copied from
@@ -26,7 +26,7 @@ js.JsFunction _jsFunction(Function fn) {
 
 const Object __varargSentinel = const Object();
 
-__invokeFn(fn, o1, o2, o3, o4, o5, o6, o7, o8, o9, o10) {
+dynamic __invokeFn(fn, o1, o2, o3, o4, o5, o6, o7, o8, o9, o10) {
   var args = [o1, o2, o3, o4, o5, o6, o7, o8, o9, o10];
   while (args.length > 0 && identical(args.last, __varargSentinel)) {
     args.removeLast();
@@ -38,7 +38,7 @@ __invokeFn(fn, o1, o2, o3, o4, o5, o6, o7, o8, o9, o10) {
 // the result of a scope.eval(), other uses are not required and are used to
 // work around http://dartbug.com/17752 in a convenient way (that bug affects
 // dart2js in checked mode.)
-_jsify(var obj) {
+dynamic _jsify(var obj) {
   if (obj == null || obj is js.JsObject) {
     return obj;
   }
@@ -75,11 +75,11 @@ class PublicTestability implements _JsObjectProxyable {
     return this._testability.isStable();
   }
 
-  whenStable(Function callback) {
-    return this._testability.whenStable(callback);
+  void whenStable(Function callback) {
+    this._testability.whenStable(callback);
   }
 
-  findBindings(Element elem, String binding, bool exactMatch) {
+  List findBindings(Element elem, String binding, bool exactMatch) {
     return this._testability.findBindings(elem, binding, exactMatch);
   }
 
@@ -147,7 +147,7 @@ class BrowserGetTestability implements GetTestability {
     jsRegistry.add(this._createRegistry(registry));
   }
 
-  findTestabilityInTree(
+  Testability findTestabilityInTree(
       TestabilityRegistry registry, dynamic elem, bool findInAncestors) {
     if (elem == null) {
       return null;

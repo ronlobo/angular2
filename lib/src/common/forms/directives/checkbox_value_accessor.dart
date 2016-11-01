@@ -7,14 +7,10 @@ import "control_value_accessor.dart"
 const CHECKBOX_VALUE_ACCESSOR = const Provider(NG_VALUE_ACCESSOR,
     useExisting: CheckboxControlValueAccessor, multi: true);
 
-/**
- * The accessor for writing a value and listening to changes on a checkbox input element.
- *
- *  ### Example
- *  ```
- *  <input type="checkbox" ngControl="rememberLogin">
- *  ```
- */
+/// The accessor for writing a value and listening to changes on a checkbox input element.
+///
+/// ### Example
+///     <input type="checkbox" ngControl="rememberLogin">
 @Directive(
     selector:
         "input[type=checkbox][ngControl],input[type=checkbox][ngFormControl],input[type=checkbox][ngModel]",
@@ -26,11 +22,11 @@ const CHECKBOX_VALUE_ACCESSOR = const Provider(NG_VALUE_ACCESSOR,
       CHECKBOX_VALUE_ACCESSOR
     ])
 class CheckboxControlValueAccessor implements ControlValueAccessor {
-  Renderer _renderer;
-  ElementRef _elementRef;
+  final Renderer _renderer;
+  final ElementRef _elementRef;
   var onChange = (dynamic _) {};
   var onTouched = () {};
-  CheckboxControlValueAccessor(this._renderer, this._elementRef) {}
+  CheckboxControlValueAccessor(this._renderer, this._elementRef);
   void writeValue(dynamic value) {
     this
         ._renderer

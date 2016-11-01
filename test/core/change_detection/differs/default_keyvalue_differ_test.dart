@@ -1,12 +1,11 @@
 library angular2.test.core.change_detection.differs.default_keyvalue_differ_test;
 
 import "package:angular2/src/core/change_detection/differs/default_keyvalue_differ.dart"
-    show DefaultKeyValueDiffer, DefaultKeyValueDifferFactory;
-import "package:angular2/src/facade/lang.dart" show NumberWrapper, isJsObject;
+    show DefaultKeyValueDiffer;
 import 'package:test/test.dart';
 
 // todo(vicb): Update the code & tests for object equality
-main() {
+void main() {
   group("keyvalue differ", () {
     group("DefaultKeyValueDiffer", () {
       var differ;
@@ -113,91 +112,12 @@ main() {
             kvChangesAsString(map: ["foo"], previous: ["foo"]));
       });
       test("should not see a NaN value as a change (JS)", () {
-        m["foo"] = NumberWrapper.NaN;
+        m["foo"] = double.NAN;
         differ.check(m);
         differ.check(m);
         expect(differ.toString(),
             kvChangesAsString(map: ["foo"], previous: ["foo"]));
-      });
-      // JS specific tests (JS Objects)
-      if (isJsObject({})) {
-        group("JsObject changes", () {
-          test("should support JS Object", () {
-            var f = new DefaultKeyValueDifferFactory();
-            expect(f.supports({}), isTrue);
-            expect(f.supports("not supported"), isFalse);
-            expect(f.supports(0), isFalse);
-            expect(f.supports(null), isFalse);
-          });
-          test("should do basic object watching", () {
-            var m = {};
-            differ.check(m);
-            m["a"] = "A";
-            differ.check(m);
-            expect(
-                differ.toString(),
-                kvChangesAsString(
-                    map: ["a[null->A]"], additions: ["a[null->A]"]));
-            m["b"] = "B";
-            differ.check(m);
-            expect(
-                differ.toString(),
-                kvChangesAsString(
-                    map: ["a", "b[null->B]"],
-                    previous: ["a"],
-                    additions: ["b[null->B]"]));
-            m["b"] = "BB";
-            m["d"] = "D";
-            differ.check(m);
-            expect(
-                differ.toString(),
-                kvChangesAsString(
-                    map: ["a", "b[B->BB]", "d[null->D]"],
-                    previous: ["a", "b[B->BB]"],
-                    additions: ["d[null->D]"],
-                    changes: ["b[B->BB]"]));
-            m = {};
-            m["a"] = "A";
-            m["d"] = "D";
-            differ.check(m);
-            expect(
-                differ.toString(),
-                kvChangesAsString(
-                    map: ["a", "d"],
-                    previous: ["a", "b[BB->null]", "d"],
-                    removals: ["b[BB->null]"]));
-            m = {};
-            differ.check(m);
-            expect(
-                differ.toString(),
-                kvChangesAsString(
-                    previous: ["a[A->null]", "d[D->null]"],
-                    removals: ["a[A->null]", "d[D->null]"]));
-          });
-        });
-        group("diff", () {
-          test("should return self when there is a change", () {
-            m["a"] = "A";
-            expect(differ.diff(m), differ);
-          });
-          test("should return null when there is no change", () {
-            m["a"] = "A";
-            differ.diff(m);
-            expect(differ.diff(m), null);
-          });
-          test("should treat null as an empty list", () {
-            m["a"] = "A";
-            differ.diff(m);
-            expect(
-                differ.diff(null).toString(),
-                kvChangesAsString(
-                    previous: ["a[A->null]"], removals: ["a[A->null]"]));
-          });
-          test("should throw when given an invalid collection", () {
-            expect(() => differ.diff("invalid"), throws);
-          });
-        });
-      }
+      }, tags: ['known_ff_failure']);
     });
   });
 }

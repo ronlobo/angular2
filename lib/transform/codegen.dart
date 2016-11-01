@@ -42,10 +42,14 @@ class CodegenTransformer extends TransformerGroup {
         [new AssetConsumer()],
         [new DirectiveProcessor(options)],
         [new DirectiveMetadataLinker(options)],
-        [new StylesheetCompiler(), new TemplateCompiler(options),],
+        [
+          new StylesheetCompiler(),
+          new TemplateCompiler(options),
+        ],
       ];
     }
-    if (options.modeName == BarbackMode.RELEASE || !options.lazyTransformers) {
+    if (options.modeName == BarbackMode.RELEASE.name ||
+        !options.lazyTransformers) {
       phases = phases
           .map((phase) => phase.map((t) => new EagerTransformerWrapper(t)));
     }

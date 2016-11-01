@@ -1,13 +1,13 @@
-@TestOn('browser')
+@TestOn('browser && !js')
 library angular2.test.di.integration_dart_test;
 
 import 'package:angular2/angular2.dart';
 import 'package:angular2/core.dart';
-import 'package:angular2/src/core/debug/debug_node.dart';
-import 'package:angular2/testing_internal.dart';
-import 'package:observe/observe.dart';
-import 'package:angular2/src/core/change_detection/differs/default_iterable_differ.dart';
 import 'package:angular2/src/core/change_detection/change_detection.dart';
+import 'package:angular2/src/core/change_detection/differs/default_iterable_differ.dart';
+import 'package:angular2/src/debug/debug_node.dart';
+import 'package:angular2/testing_internal.dart';
+import 'package:observable/observable.dart';
 import 'package:test/test.dart';
 
 class MockException implements Error {
@@ -42,7 +42,7 @@ void functionThatThrowsNonError() {
   }
 }
 
-main() {
+void main() {
   group('Error handling', () {
     test('should preserve Error stack traces thrown from components', () async {
       return inject([TestComponentBuilder, AsyncTestCompleter],
@@ -50,7 +50,7 @@ main() {
         tb
             .overrideView(
                 Dummy,
-                new ViewMetadata(
+                new View(
                     template: '<throwing-component></throwing-component>',
                     directives: [ThrowingComponent]))
             .createAsync(Dummy)
@@ -69,7 +69,7 @@ main() {
         tb
             .overrideView(
                 Dummy,
-                new ViewMetadata(
+                new View(
                     template: '<throwing-component2></throwing-component2>',
                     directives: [ThrowingComponent2]))
             .createAsync(Dummy)
@@ -89,13 +89,14 @@ main() {
         tb
             .overrideView(
                 Dummy,
-                new ViewMetadata(
+                new View(
                     template: '<property-access></property-access>',
                     directives: [PropertyAccess]))
             .createAsync(Dummy)
             .then((tc) {
           tc.detectChanges();
-          expect(asNativeElements(tc.debugElement.children),
+          expect(
+              asNativeElements(tc.debugElement.children as List<DebugElement>),
               hasTextContent('prop:foo-prop;map:foo-map'));
           completer.done();
         });
@@ -108,7 +109,7 @@ main() {
         tb
             .overrideView(
                 Dummy,
-                new ViewMetadata(
+                new View(
                     template: '<no-property-access></no-property-access>',
                     directives: [NoPropertyAccess]))
             .createAsync(Dummy)
@@ -128,7 +129,7 @@ main() {
         tb
             .overrideView(
                 Dummy,
-                new ViewMetadata(
+                new View(
                     template: '''<on-change [prop]="'hello'"></on-change>''',
                     directives: [OnChangeComponent]))
             .createAsync(Dummy)
@@ -149,7 +150,7 @@ main() {
         tcb
             .overrideView(
                 Dummy,
-                new ViewMetadata(
+                new View(
                     template:
                         '''<component-with-observable-list [list]="value"></component-with-observable-list>''',
                     directives: [ComponentWithObservableList]))
@@ -220,9 +221,9 @@ class ThrowingComponent2 {
 class PropModel implements Map {
   final String foo = 'foo-prop';
 
-  operator [](_) => 'foo-map';
+  String operator [](_) => 'foo-map';
 
-  noSuchMethod(_) {
+  dynamic noSuchMethod(_) {
     throw 'property not found';
   }
 }

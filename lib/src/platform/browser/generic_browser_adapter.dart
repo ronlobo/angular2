@@ -3,8 +3,8 @@ import "package:angular2/src/platform/dom/dom_adapter.dart" show DomAdapter;
 
 /// Provides DOM operations in any browser environment.
 abstract class GenericBrowserDomAdapter<T, N, ET> extends DomAdapter<T, N, ET> {
-  String _animationPrefix = null;
-  String _transitionEnd = null;
+  String _animationPrefix;
+  String _transitionEnd;
   GenericBrowserDomAdapter() : super() {
     // Detect animationFrame and end of transition function names.
     try {
@@ -51,7 +51,7 @@ abstract class GenericBrowserDomAdapter<T, N, ET> extends DomAdapter<T, N, ET> {
     return el.getDistributedNodes();
   }
 
-  resolveAndSetHref(dynamic el, String baseUrl, String href) {
+  void resolveAndSetHref(dynamic el, String baseUrl, String href) {
     el.href = href == null ? baseUrl : baseUrl + "/../" + href;
   }
 

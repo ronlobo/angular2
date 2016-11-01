@@ -1,20 +1,19 @@
 library angular2.test.compiler.css.lexer_test;
 
-import 'package:angular2/src/facade/lang.dart' show isPresent;
 import 'package:angular2/src/compiler/css/lexer.dart'
     show CssToken, CssScannerError, CssLexer, CssLexerMode, CssTokenType;
 import 'package:test/test.dart';
 
-main() {
+void main() {
   List<CssToken> tokenize(code,
       [bool trackComments = false, CssLexerMode mode = CssLexerMode.ALL]) {
     var scanner = new CssLexer().scan(code, trackComments);
     scanner.setMode(mode);
-    var tokens = [];
+    var tokens = <CssToken>[];
     var output = scanner.scan();
     while (output != null) {
       var error = output.error;
-      if (isPresent(error)) {
+      if (error != null) {
         throw new CssScannerError(error.token, error.rawMessage);
       }
       tokens.add(output.token);
@@ -22,6 +21,7 @@ main() {
     }
     return tokens;
   }
+
   group('CssLexer', () {
     test(
         'should lex newline characters as whitespace when '
@@ -238,10 +238,11 @@ main() {
       test(
           'should consider attribute selectors as valid input and throw when '
           'an invalid modifier is used', () {
-        tokenizeAttr(modifier) {
+        List<CssToken> tokenizeAttr(modifier) {
           var cssCode = 'value' + modifier + '=\'something\'';
           return tokenize(cssCode, false, CssLexerMode.ATTRIBUTE_SELECTOR);
         }
+
         expect(tokenizeAttr('*').length, 4);
         expect(tokenizeAttr('|').length, 4);
         expect(tokenizeAttr('^').length, 4);
@@ -257,7 +258,7 @@ main() {
       test(
           'should validate media queries with'
           ' a reduced subset of valid characters', () {
-        tokenizeQuery(code) {
+        List<CssToken> tokenizeQuery(code) {
           return tokenize(code, false, CssLexerMode.MEDIA_QUERY);
         }
         // the reason why the numbers are so high is because MediaQueries keep
@@ -283,9 +284,10 @@ main() {
       test(
           'should validate pseudo selector identifiers with a reduced subset '
           'of valid characters', () {
-        tokenizePseudo(code) {
+        List<CssToken> tokenizePseudo(code) {
           return tokenize(code, false, CssLexerMode.PSEUDO_SELECTOR);
         }
+
         expect(tokenizePseudo('lang(en-us)').length, 4);
         expect(tokenizePseudo('hover').length, 1);
         expect(tokenizePseudo('focus').length, 1);
@@ -301,9 +303,10 @@ main() {
       test(
           'should validate pseudo selector identifiers with a reduced subset '
           'of valid characters', () {
-        tokenizePseudo(code) {
+        List<CssToken> tokenizePseudo(code) {
           return tokenize(code, false, CssLexerMode.PSEUDO_SELECTOR);
         }
+
         expect(tokenizePseudo('lang(en-us)').length, 4);
         expect(tokenizePseudo('hover').length, 1);
         expect(tokenizePseudo('focus').length, 1);
@@ -317,9 +320,10 @@ main() {
     });
     group('Style Block Mode', () {
       test('should style blocks with a reduced subset of valid characters', () {
-        tokenizeStyles(code) {
+        List<CssToken> tokenizeStyles(code) {
           return tokenize(code, false, CssLexerMode.STYLE_BLOCK);
         }
+
         expect(tokenizeStyles('''
           key: value;
           prop: 100;

@@ -1,61 +1,73 @@
 @TestOn('browser')
 library angular2.test.compiler.expression_parser.parser_test;
 
-import "package:angular2/testing_internal.dart";
-import "package:angular2/src/facade/lang.dart" show isBlank, isPresent;
-import "package:angular2/src/compiler/expression_parser/parser.dart"
-    show Parser;
-import "unparser.dart" show Unparser;
-import "package:angular2/src/compiler/expression_parser/lexer.dart" show Lexer;
 import "package:angular2/src/compiler/expression_parser/ast.dart"
     show BindingPipe, AST;
+import "package:angular2/src/compiler/expression_parser/lexer.dart" show Lexer;
+import "package:angular2/src/compiler/expression_parser/parser.dart"
+    show Parser;
+import "package:angular2/testing_internal.dart";
 import "package:test/test.dart";
 
-main() {
-  createParser() {
+import "unparser.dart" show Unparser;
+
+void main() {
+  Parser createParser() {
     return new Parser(new Lexer());
   }
+
   dynamic parseAction(text, [location = null]) {
     return createParser().parseAction(text, location);
   }
+
   dynamic parseBinding(text, [location = null]) {
     return createParser().parseBinding(text, location);
   }
+
   dynamic parseTemplateBindings(text, [location = null]) {
     return createParser()
         .parseTemplateBindings(text, location)
         .templateBindings;
   }
+
   dynamic parseInterpolation(text, [location = null]) {
     return createParser().parseInterpolation(text, location);
   }
+
   dynamic parseSimpleBinding(text, [location = null]) {
     return createParser().parseSimpleBinding(text, location);
   }
+
   String unparse(AST ast) {
     return new Unparser().unparse(ast);
   }
-  checkInterpolation(String exp, [String expected]) {
+
+  void checkInterpolation(String exp, [String expected]) {
     var ast = parseInterpolation(exp);
-    if (isBlank(expected)) expected = exp;
+    expected ??= exp;
     expect(unparse(ast), expected);
   }
-  checkBinding(String exp, [String expected]) {
+
+  void checkBinding(String exp, [String expected]) {
     var ast = parseBinding(exp);
-    if (isBlank(expected)) expected = exp;
+    expected ??= exp;
     expect(unparse(ast), expected);
   }
-  checkAction(String exp, [String expected]) {
+
+  void checkAction(String exp, [String expected]) {
     var ast = parseAction(exp);
-    if (isBlank(expected)) expected = exp;
+    expected ??= exp;
     expect(unparse(ast), expected);
   }
-  expectActionError(text, matcher) {
-    return expect(() => parseAction(text), matcher);
+
+  void expectActionError(text, matcher) {
+    expect(() => parseAction(text), matcher);
   }
-  expectBindingError(text, matcher) {
-    return expect(() => parseBinding(text), matcher);
+
+  void expectBindingError(text, matcher) {
+    expect(() => parseBinding(text), matcher);
   }
+
   group("parser", () {
     group("parseAction", () {
       test("should parse numbers", () {
@@ -181,6 +193,18 @@ main() {
                   "Parser Error: Conditional expression true\\?1 requires all 3 expressions")));
         });
       });
+      group("ifNull", () {
+        test("should parse if null expressions", () {
+          checkAction("null ?? 0");
+          checkAction("fn() ?? 0");
+        });
+        test("should throw on missing null case", () {
+          expectActionError(
+              "null ??",
+              throwsWith(new RegExp(
+                  "Parser Error: Unexpected end of expression: null \\?\\?")));
+        });
+      });
       group("assignment", () {
         test("should support field assignments", () {
           checkAction("a = 12");
@@ -300,30 +324,32 @@ main() {
       });
     });
     group("parseTemplateBindings", () {
-      keys(List<dynamic> templateBindings) {
+      List keys(List<dynamic> templateBindings) {
         return templateBindings.map((binding) => binding.key).toList();
       }
-      keyValues(List<dynamic> templateBindings) {
+
+      List keyValues(List<dynamic> templateBindings) {
         return templateBindings.map((binding) {
           if (binding.keyIsVar) {
             return "let " +
                 binding.key +
-                (isBlank(binding.name) ? "=null" : "=" + binding.name);
+                (binding.name == null ? "=null" : "=" + binding.name);
           } else {
             return binding.key +
-                (isBlank(binding.expression)
+                (binding.expression == null
                     ? ""
                     : '''=${ binding . expression}''');
           }
         }).toList();
       }
-      exprSources(List<dynamic> templateBindings) {
+
+      List exprSources(List<dynamic> templateBindings) {
         return templateBindings
-            .map((binding) => isPresent(binding.expression)
-                ? binding.expression.source
-                : null)
+            .map((binding) =>
+                binding.expression != null ? binding.expression.source : null)
             .toList();
       }
+
       test("should parse an empty string", () {
         expect(parseTemplateBindings(""), []);
       });

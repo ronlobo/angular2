@@ -1,7 +1,3 @@
-import "package:angular2/src/facade/collection.dart" show ListWrapper;
-import "package:angular2/src/facade/lang.dart"
-    show StringWrapper, NumberWrapper, isPresent, isBlank;
-
 import "html_tags.dart"
     show getHtmlTagDefinition, HtmlTagContentType, NAMED_ENTITIES;
 import "parse_util.dart"
@@ -31,24 +27,22 @@ enum HtmlTokenType {
 }
 
 class HtmlToken {
-  HtmlTokenType type;
-  List<String> parts;
-  ParseSourceSpan sourceSpan;
-  HtmlToken(this.type, this.parts, this.sourceSpan) {}
+  final HtmlTokenType type;
+  final List<String> parts;
+  final ParseSourceSpan sourceSpan;
+  HtmlToken(this.type, this.parts, this.sourceSpan);
 }
 
 class HtmlTokenError extends ParseError {
-  HtmlTokenType tokenType;
+  final HtmlTokenType tokenType;
   HtmlTokenError(String errorMsg, this.tokenType, ParseSourceSpan span)
-      : super(span, errorMsg) {
-    /* super call moved to initializer */;
-  }
+      : super(span, errorMsg);
 }
 
 class HtmlTokenizeResult {
-  List<HtmlToken> tokens;
-  List<HtmlTokenError> errors;
-  HtmlTokenizeResult(this.tokens, this.errors) {}
+  final List<HtmlToken> tokens;
+  final List<HtmlTokenError> errors;
+  HtmlTokenizeResult(this.tokens, this.errors);
 }
 
 HtmlTokenizeResult tokenizeHtml(String sourceContent, String sourceUrl,
@@ -97,17 +91,17 @@ const $NBSP = 160;
 var CR_OR_CRLF_REGEXP = new RegExp(r'\r\n?');
 String unexpectedCharacterErrorMsg(num charCode) {
   var char =
-      identical(charCode, $EOF) ? "EOF" : StringWrapper.fromCharCode(charCode);
-  return '''Unexpected character "${ char}"''';
+      identical(charCode, $EOF) ? "EOF" : new String.fromCharCode(charCode);
+  return '''Unexpected character "$char"''';
 }
 
 String unknownEntityErrorMsg(String entitySrc) {
-  return '''Unknown entity "${ entitySrc}" - use the "&#<decimal>;" or  "&#x<hex>;" syntax''';
+  return '''Unknown entity "$entitySrc" - use the "&#<decimal>;" or  "&#x<hex>;" syntax''';
 }
 
-class ControlFlowError {
-  HtmlTokenError error;
-  ControlFlowError(this.error) {}
+class ControlFlowError extends Error {
+  final HtmlTokenError error;
+  ControlFlowError(this.error);
 }
 
 // See http://www.w3.org/TR/html51/syntax.html#writing
@@ -134,13 +128,10 @@ class _HtmlTokenizer {
   }
   String _processCarriageReturns(String content) {
     // http://www.w3.org/TR/html5/syntax.html#preprocessing-the-input-stream
-
     // In order to keep the original position in the source, we can not
-
     // pre-process it.
-
     // Instead CRs are processed right before instantiating the tokens.
-    return StringWrapper.replaceAll(content, CR_OR_CRLF_REGEXP, "\n");
+    return content.replaceAll(CR_OR_CRLF_REGEXP, "\n");
   }
 
   HtmlTokenizeResult tokenize() {
@@ -195,27 +186,19 @@ class _HtmlTokenizer {
   }
 
   ParseSourceSpan _getSpan([ParseLocation start, ParseLocation end]) {
-    if (isBlank(start)) {
-      start = this._getLocation();
-    }
-    if (isBlank(end)) {
-      end = this._getLocation();
-    }
+    start ??= this._getLocation();
+    end ??= this._getLocation();
     return new ParseSourceSpan(start, end);
   }
 
-  _beginToken(HtmlTokenType type, [ParseLocation start = null]) {
-    if (isBlank(start)) {
-      start = this._getLocation();
-    }
+  void _beginToken(HtmlTokenType type, [ParseLocation start = null]) {
+    start ??= this._getLocation();
     this.currentTokenStart = start;
     this.currentTokenType = type;
   }
 
   HtmlToken _endToken(List<String> parts, [ParseLocation end = null]) {
-    if (isBlank(end)) {
-      end = this._getLocation();
-    }
+    end ??= this._getLocation();
     var token = new HtmlToken(this.currentTokenType, parts,
         new ParseSourceSpan(this.currentTokenStart, end));
     this.tokens.add(token);
@@ -231,7 +214,7 @@ class _HtmlTokenizer {
     return new ControlFlowError(error);
   }
 
-  _advance() {
+  void _advance() {
     if (this.index >= this.length) {
       throw this
           ._createError(unexpectedCharacterErrorMsg($EOF), this._getSpan());
@@ -243,12 +226,11 @@ class _HtmlTokenizer {
       this.column++;
     }
     this.index++;
-    this.peek = this.index >= this.length
-        ? $EOF
-        : StringWrapper.charCodeAt(this.input, this.index);
+    this.peek =
+        this.index >= this.length ? $EOF : this.input.codeUnitAt(this.index);
     this.nextPeek = this.index + 1 >= this.length
         ? $EOF
-        : StringWrapper.charCodeAt(this.input, this.index + 1);
+        : this.input.codeUnitAt(this.index + 1);
   }
 
   bool _attemptCharCode(num charCode) {
@@ -267,7 +249,7 @@ class _HtmlTokenizer {
     return false;
   }
 
-  _requireCharCode(num charCode) {
+  void _requireCharCode(num charCode) {
     var location = this._getLocation();
     if (!this._attemptCharCode(charCode)) {
       throw this._createError(unexpectedCharacterErrorMsg(this.peek),
@@ -277,7 +259,7 @@ class _HtmlTokenizer {
 
   bool _attemptStr(String chars) {
     for (var i = 0; i < chars.length; i++) {
-      if (!this._attemptCharCode(StringWrapper.charCodeAt(chars, i))) {
+      if (!this._attemptCharCode(chars.codeUnitAt(i))) {
         return false;
       }
     }
@@ -286,15 +268,14 @@ class _HtmlTokenizer {
 
   bool _attemptStrCaseInsensitive(String chars) {
     for (var i = 0; i < chars.length; i++) {
-      if (!this._attemptCharCodeCaseInsensitive(
-          StringWrapper.charCodeAt(chars, i))) {
+      if (!this._attemptCharCodeCaseInsensitive(chars.codeUnitAt(i))) {
         return false;
       }
     }
     return true;
   }
 
-  _requireStr(String chars) {
+  void _requireStr(String chars) {
     var location = this._getLocation();
     if (!this._attemptStr(chars)) {
       throw this._createError(
@@ -302,13 +283,13 @@ class _HtmlTokenizer {
     }
   }
 
-  _attemptCharCodeUntilFn(Function predicate) {
+  void _attemptCharCodeUntilFn(Function predicate) {
     while (!predicate(this.peek)) {
       this._advance();
     }
   }
 
-  _requireCharCodeUntilFn(Function predicate, num len) {
+  void _requireCharCodeUntilFn(Function predicate, num len) {
     var start = this._getLocation();
     this._attemptCharCodeUntilFn(predicate);
     if (this.index - start.offset < len) {
@@ -317,7 +298,7 @@ class _HtmlTokenizer {
     }
   }
 
-  _attemptUntilChar(num char) {
+  void _attemptUntilChar(num char) {
     while (!identical(this.peek, char)) {
       this._advance();
     }
@@ -347,8 +328,8 @@ class _HtmlTokenizer {
       this._advance();
       var strNum = this.input.substring(numberStart, this.index - 1);
       try {
-        var charCode = NumberWrapper.parseInt(strNum, isHex ? 16 : 10);
-        return StringWrapper.fromCharCode(charCode);
+        var charCode = int.parse(strNum, radix: isHex ? 16 : 10);
+        return new String.fromCharCode(charCode);
       } catch (e) {
         var entity = this.input.substring(start.offset + 1, this.index - 1);
         throw this
@@ -364,7 +345,7 @@ class _HtmlTokenizer {
       this._advance();
       var name = this.input.substring(start.offset + 1, this.index - 1);
       var char = NAMED_ENTITIES[name];
-      if (isBlank(char)) {
+      if (char == null) {
         throw this
             ._createError(unknownEntityErrorMsg(name), this._getSpan(start));
       }
@@ -398,7 +379,7 @@ class _HtmlTokenizer {
         [this._processCarriageReturns(parts.join(""))], tagCloseStart);
   }
 
-  _consumeComment(ParseLocation start) {
+  void _consumeComment(ParseLocation start) {
     this._beginToken(HtmlTokenType.COMMENT_START, start);
     this._requireCharCode($MINUS);
     this._endToken([]);
@@ -408,7 +389,7 @@ class _HtmlTokenizer {
     this._endToken([]);
   }
 
-  _consumeCdata(ParseLocation start) {
+  void _consumeCdata(ParseLocation start) {
     this._beginToken(HtmlTokenType.CDATA_START, start);
     this._requireStr("CDATA[");
     this._endToken([]);
@@ -418,7 +399,7 @@ class _HtmlTokenizer {
     this._endToken([]);
   }
 
-  _consumeDocType(ParseLocation start) {
+  void _consumeDocType(ParseLocation start) {
     this._beginToken(HtmlTokenType.DOC_TYPE, start);
     this._attemptUntilChar($GT);
     this._advance();
@@ -427,7 +408,7 @@ class _HtmlTokenizer {
 
   List<String> _consumePrefixAndName() {
     var nameOrPrefixStart = this.index;
-    var prefix = null;
+    String prefix;
     while (!identical(this.peek, $COLON) && !isPrefixEnd(this.peek)) {
       this._advance();
     }
@@ -445,7 +426,7 @@ class _HtmlTokenizer {
     return [prefix, name];
   }
 
-  _consumeTagOpen(ParseLocation start) {
+  void _consumeTagOpen(ParseLocation start) {
     var savedPos = this._savePosition();
     var lowercaseTagName;
     try {
@@ -488,7 +469,8 @@ class _HtmlTokenizer {
     }
   }
 
-  _consumeRawTextWithTagClose(String lowercaseTagName, bool decodeEntities) {
+  void _consumeRawTextWithTagClose(
+      String lowercaseTagName, bool decodeEntities) {
     var textToken = this._consumeRawText(decodeEntities, $LT, () {
       if (!this._attemptCharCode($SLASH)) return false;
       this._attemptCharCodeUntilFn(isNotWhitespace);
@@ -501,19 +483,19 @@ class _HtmlTokenizer {
     this._endToken([null, lowercaseTagName]);
   }
 
-  _consumeTagOpenStart(ParseLocation start) {
+  void _consumeTagOpenStart(ParseLocation start) {
     this._beginToken(HtmlTokenType.TAG_OPEN_START, start);
     var parts = this._consumePrefixAndName();
     this._endToken(parts);
   }
 
-  _consumeAttributeName() {
+  void _consumeAttributeName() {
     this._beginToken(HtmlTokenType.ATTR_NAME);
     var prefixAndName = this._consumePrefixAndName();
     this._endToken(prefixAndName);
   }
 
-  _consumeAttributeValue() {
+  void _consumeAttributeValue() {
     this._beginToken(HtmlTokenType.ATTR_VALUE);
     var value;
     if (identical(this.peek, $SQ) || identical(this.peek, $DQ)) {
@@ -533,7 +515,7 @@ class _HtmlTokenizer {
     this._endToken([this._processCarriageReturns(value)]);
   }
 
-  _consumeTagOpenEnd() {
+  void _consumeTagOpenEnd() {
     var tokenType = this._attemptCharCode($SLASH)
         ? HtmlTokenType.TAG_OPEN_END_VOID
         : HtmlTokenType.TAG_OPEN_END;
@@ -542,7 +524,7 @@ class _HtmlTokenizer {
     this._endToken([]);
   }
 
-  _consumeTagClose(ParseLocation start) {
+  void _consumeTagClose(ParseLocation start) {
     this._beginToken(HtmlTokenType.TAG_CLOSE, start);
     this._attemptCharCodeUntilFn(isNotWhitespace);
     List<String> prefixAndName;
@@ -552,7 +534,7 @@ class _HtmlTokenizer {
     this._endToken(prefixAndName);
   }
 
-  _consumeExpansionFormStart() {
+  void _consumeExpansionFormStart() {
     this._beginToken(HtmlTokenType.EXPANSION_FORM_START, this._getLocation());
     this._requireCharCode($LBRACE);
     this._endToken([]);
@@ -569,7 +551,7 @@ class _HtmlTokenizer {
     this.expansionCaseStack.add(HtmlTokenType.EXPANSION_FORM_START);
   }
 
-  _consumeExpansionCaseStart() {
+  void _consumeExpansionCaseStart() {
     this._requireCharCode($EQ);
     this._beginToken(HtmlTokenType.EXPANSION_CASE_VALUE, this._getLocation());
     var value = this._readUntil($LBRACE).trim();
@@ -583,7 +565,7 @@ class _HtmlTokenizer {
     this.expansionCaseStack.add(HtmlTokenType.EXPANSION_CASE_EXP_START);
   }
 
-  _consumeExpansionCaseEnd() {
+  void _consumeExpansionCaseEnd() {
     this._beginToken(HtmlTokenType.EXPANSION_CASE_EXP_END, this._getLocation());
     this._requireCharCode($RBRACE);
     this._endToken([], this._getLocation());
@@ -591,14 +573,14 @@ class _HtmlTokenizer {
     this.expansionCaseStack.removeLast();
   }
 
-  _consumeExpansionFormEnd() {
+  void _consumeExpansionFormEnd() {
     this._beginToken(HtmlTokenType.EXPANSION_FORM_END, this._getLocation());
     this._requireCharCode($RBRACE);
     this._endToken([]);
     this.expansionCaseStack.removeLast();
   }
 
-  _consumeText() {
+  void _consumeText() {
     var start = this._getLocation();
     this._beginToken(HtmlTokenType.TEXT, start);
     var parts = [];
@@ -657,7 +639,7 @@ class _HtmlTokenizer {
     var nbTokens = position[4];
     if (nbTokens < this.tokens.length) {
       // remove any extra tokens
-      this.tokens = ListWrapper.slice(this.tokens, 0, nbTokens);
+      this.tokens = tokens.sublist(0, nbTokens);
     }
   }
 
@@ -732,7 +714,7 @@ List<HtmlToken> mergeTextTokens(List<HtmlToken> srcTokens) {
   HtmlToken lastDstToken;
   for (var i = 0; i < srcTokens.length; i++) {
     var token = srcTokens[i];
-    if (isPresent(lastDstToken) &&
+    if (lastDstToken != null &&
         lastDstToken.type == HtmlTokenType.TEXT &&
         token.type == HtmlTokenType.TEXT) {
       lastDstToken.parts[0] += token.parts[0];

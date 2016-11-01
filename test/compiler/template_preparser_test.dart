@@ -1,13 +1,13 @@
 @TestOn('browser')
 library angular2.test.compiler.template_preparser_test;
 
-import "package:angular2/testing_internal.dart";
 import "package:angular2/src/compiler/html_parser.dart" show HtmlParser;
 import "package:angular2/src/compiler/template_preparser.dart"
     show preparseElement, PreparsedElementType, PreparsedElement;
+import "package:angular2/testing_internal.dart";
 import 'package:test/test.dart';
 
-main() {
+void main() {
   group("preparseElement", () {
     var htmlParser;
     setUp(() async {
@@ -18,6 +18,7 @@ main() {
     PreparsedElement preparse(String html) {
       return preparseElement(htmlParser.parse(html, "TestComp").rootNodes[0]);
     }
+
     test("should detect script elements", () async {
       return inject([HtmlParser], (HtmlParser htmlParser) {
         expect(preparse("<script>").type, PreparsedElementType.SCRIPT);

@@ -1,8 +1,6 @@
 import "package:angular2/src/core/di/decorators.dart" show Injectable;
-import "package:angular2/src/facade/collection.dart" show ListWrapper;
 import "package:angular2/src/facade/exceptions.dart" show BaseException;
-import "package:angular2/src/facade/lang.dart"
-    show isBlank, isPresent, StringWrapper;
+import "package:angular2/src/facade/lang.dart" show jsSplit;
 
 import "ast.dart"
     show
@@ -16,6 +14,7 @@ import "ast.dart"
         Binary,
         PrefixNot,
         Conditional,
+        IfNull,
         BindingPipe,
         Chain,
         KeyedRead,
@@ -57,27 +56,25 @@ class ParseException extends BaseException {
   ParseException(String message, String input, String errLocation,
       [dynamic ctxLocation])
       : super(
-            '''Parser Error: ${ message} ${ errLocation} [${ input}] in ${ ctxLocation}''') {
-    /* super call moved to initializer */;
-  }
+            '''Parser Error: ${ message} ${ errLocation} [${ input}] in ${ ctxLocation}''');
 }
 
 class SplitInterpolation {
   List<String> strings;
   List<String> expressions;
-  SplitInterpolation(this.strings, this.expressions) {}
+  SplitInterpolation(this.strings, this.expressions);
 }
 
 class TemplateBindingParseResult {
   List<TemplateBinding> templateBindings;
   List<String> warnings;
-  TemplateBindingParseResult(this.templateBindings, this.warnings) {}
+  TemplateBindingParseResult(this.templateBindings, this.warnings);
 }
 
 @Injectable()
 class Parser {
   Lexer _lexer;
-  Parser(this._lexer) {}
+  Parser(this._lexer);
   ASTWithSource parseAction(String input, dynamic location) {
     this._checkNoInterpolation(input, location);
     var tokens = this._lexer.tokenize(this._stripComments(input));
@@ -106,7 +103,7 @@ class Parser {
 
     // our lexer or parser for that, so we check for that ahead of time.
     var quote = this._parseQuote(input, location);
-    if (isPresent(quote)) {
+    if (quote != null) {
       return quote;
     }
     this._checkNoInterpolation(input, location);
@@ -115,7 +112,7 @@ class Parser {
   }
 
   AST _parseQuote(String input, dynamic location) {
-    if (isBlank(input)) return null;
+    if (input == null) return null;
     var prefixSeparatorIndex = input.indexOf(":");
     if (prefixSeparatorIndex == -1) return null;
     var prefix = input.substring(0, prefixSeparatorIndex).trim();
@@ -146,7 +143,7 @@ class Parser {
   }
 
   SplitInterpolation splitInterpolation(String input, String location) {
-    var parts = StringWrapper.split(input, INTERPOLATION_REGEXP);
+    var parts = jsSplit(input, INTERPOLATION_REGEXP);
     if (parts.length <= 1) {
       return null;
     }
@@ -176,19 +173,19 @@ class Parser {
 
   String _stripComments(String input) {
     var i = this._commentStart(input);
-    return isPresent(i) ? input.substring(0, i).trim() : input;
+    return i != null ? input.substring(0, i).trim() : input;
   }
 
   num _commentStart(String input) {
-    var outerQuote = null;
+    var outerQuote;
     for (var i = 0; i < input.length - 1; i++) {
-      var char = StringWrapper.charCodeAt(input, i);
-      var nextChar = StringWrapper.charCodeAt(input, i + 1);
-      if (identical(char, $SLASH) && nextChar == $SLASH && isBlank(outerQuote))
+      var char = input.codeUnitAt(i);
+      var nextChar = input.codeUnitAt(i + 1);
+      if (identical(char, $SLASH) && nextChar == $SLASH && outerQuote == null)
         return i;
       if (identical(outerQuote, char)) {
         outerQuote = null;
-      } else if (isBlank(outerQuote) && isQuote(char)) {
+      } else if (outerQuote == null && isQuote(char)) {
         outerQuote = char;
       }
     }
@@ -196,7 +193,7 @@ class Parser {
   }
 
   void _checkNoInterpolation(String input, dynamic location) {
-    var parts = StringWrapper.split(input, INTERPOLATION_REGEXP);
+    var parts = jsSplit(input, INTERPOLATION_REGEXP);
     if (parts.length > 1) {
       throw new ParseException(
           "Got interpolation ({{}}) where expression was expected",
@@ -221,7 +218,7 @@ class _ParseAST {
   List<dynamic> tokens;
   bool parseAction;
   num index = 0;
-  _ParseAST(this.input, this.location, this.tokens, this.parseAction) {}
+  _ParseAST(this.input, this.location, this.tokens, this.parseAction);
   Token peek(num offset) {
     var i = this.index + offset;
     return i < this.tokens.length ? this.tokens[i] : EOF;
@@ -237,7 +234,7 @@ class _ParseAST {
         : this.input.length;
   }
 
-  advance() {
+  void advance() {
     this.index++;
   }
 
@@ -262,10 +259,9 @@ class _ParseAST {
     return this.next.isOperator("#");
   }
 
-  expectCharacter(num code) {
+  void expectCharacter(num code) {
     if (this.optionalCharacter(code)) return;
-    this.error(
-        '''Missing expected ${ StringWrapper . fromCharCode ( code )}''');
+    this.error('''Missing expected ${new String.fromCharCode(code)}''');
   }
 
   bool optionalOperator(String op) {
@@ -277,7 +273,7 @@ class _ParseAST {
     }
   }
 
-  expectOperator(String operator) {
+  void expectOperator(String operator) {
     if (this.optionalOperator(operator)) return;
     this.error('''Missing expected operator ${ operator}''');
   }
@@ -345,7 +341,10 @@ class _ParseAST {
   AST parseConditional() {
     var start = this.inputIndex;
     var result = this.parseLogicalOr();
-    if (this.optionalOperator("?")) {
+    if (this.optionalOperator("??")) {
+      var nullExp = this.parsePipe();
+      return new IfNull(result, nullExp);
+    } else if (this.optionalOperator("?")) {
       var yes = this.parsePipe();
       if (!this.optionalCharacter($COLON)) {
         var end = this.inputIndex;
@@ -603,9 +602,7 @@ class _ParseAST {
     return new Chain(exprs);
   }
 
-  /**
-   * An identifier, a keyword, a string with an optional `-` inbetween.
-   */
+  /// An identifier, a keyword, a string with an optional `-` inbetween.
   String expectTemplateBindingKey() {
     var result = "";
     var operatorFound = false;
@@ -621,7 +618,7 @@ class _ParseAST {
 
   TemplateBindingParseResult parseTemplateBindings() {
     List<TemplateBinding> bindings = [];
-    var prefix = null;
+    var prefix;
     List<String> warnings = [];
     while (this.index < this.tokens.length) {
       bool keyIsVar = this.peekKeywordLet();
@@ -647,8 +644,8 @@ class _ParseAST {
         }
       }
       this.optionalCharacter($COLON);
-      var name = null;
-      var expression = null;
+      var name;
+      var expression;
       if (keyIsVar) {
         if (this.optionalOperator("=")) {
           name = this.expectTemplateBindingKey();
@@ -672,8 +669,8 @@ class _ParseAST {
     return new TemplateBindingParseResult(bindings, warnings);
   }
 
-  error(String message, [num index = null]) {
-    if (isBlank(index)) index = this.index;
+  void error(String message, [num index = null]) {
+    if (index == null) index = this.index;
     var location = (index < this.tokens.length)
         ? '''at column ${ this . tokens [ index ] . index + 1} in'''
         : '''at the end of the expression''';
@@ -689,78 +686,82 @@ class SimpleExpressionChecker implements AstVisitor {
   }
 
   var simple = true;
-  visitImplicitReceiver(ImplicitReceiver ast, dynamic context) {}
-  visitInterpolation(Interpolation ast, dynamic context) {
+  void visitImplicitReceiver(ImplicitReceiver ast, dynamic context) {}
+  void visitInterpolation(Interpolation ast, dynamic context) {
     this.simple = false;
   }
 
-  visitLiteralPrimitive(LiteralPrimitive ast, dynamic context) {}
-  visitPropertyRead(PropertyRead ast, dynamic context) {}
-  visitPropertyWrite(PropertyWrite ast, dynamic context) {
+  void visitLiteralPrimitive(LiteralPrimitive ast, dynamic context) {}
+  void visitPropertyRead(PropertyRead ast, dynamic context) {}
+  void visitPropertyWrite(PropertyWrite ast, dynamic context) {
     this.simple = false;
   }
 
-  visitSafePropertyRead(SafePropertyRead ast, dynamic context) {
+  void visitSafePropertyRead(SafePropertyRead ast, dynamic context) {
     this.simple = false;
   }
 
-  visitMethodCall(MethodCall ast, dynamic context) {
+  void visitMethodCall(MethodCall ast, dynamic context) {
     this.simple = false;
   }
 
-  visitSafeMethodCall(SafeMethodCall ast, dynamic context) {
+  void visitSafeMethodCall(SafeMethodCall ast, dynamic context) {
     this.simple = false;
   }
 
-  visitFunctionCall(FunctionCall ast, dynamic context) {
+  void visitFunctionCall(FunctionCall ast, dynamic context) {
     this.simple = false;
   }
 
-  visitLiteralArray(LiteralArray ast, dynamic context) {
+  void visitLiteralArray(LiteralArray ast, dynamic context) {
     this.visitAll(ast.expressions);
   }
 
-  visitLiteralMap(LiteralMap ast, dynamic context) {
+  void visitLiteralMap(LiteralMap ast, dynamic context) {
     this.visitAll(ast.values);
   }
 
-  visitBinary(Binary ast, dynamic context) {
+  void visitBinary(Binary ast, dynamic context) {
     this.simple = false;
   }
 
-  visitPrefixNot(PrefixNot ast, dynamic context) {
+  void visitPrefixNot(PrefixNot ast, dynamic context) {
     this.simple = false;
   }
 
-  visitConditional(Conditional ast, dynamic context) {
+  void visitConditional(Conditional ast, dynamic context) {
     this.simple = false;
   }
 
-  visitPipe(BindingPipe ast, dynamic context) {
+  void visitIfNull(IfNull ast, dynamic context) {
     this.simple = false;
   }
 
-  visitKeyedRead(KeyedRead ast, dynamic context) {
+  void visitPipe(BindingPipe ast, dynamic context) {
     this.simple = false;
   }
 
-  visitKeyedWrite(KeyedWrite ast, dynamic context) {
+  void visitKeyedRead(KeyedRead ast, dynamic context) {
+    this.simple = false;
+  }
+
+  void visitKeyedWrite(KeyedWrite ast, dynamic context) {
     this.simple = false;
   }
 
   List<dynamic> visitAll(List<dynamic> asts) {
-    var res = ListWrapper.createFixedSize(asts.length);
+    var res = new List(asts.length);
     for (var i = 0; i < asts.length; ++i) {
       res[i] = asts[i].visit(this);
     }
     return res;
   }
 
-  visitChain(Chain ast, dynamic context) {
+  void visitChain(Chain ast, dynamic context) {
     this.simple = false;
   }
 
-  visitQuote(Quote ast, dynamic context) {
+  void visitQuote(Quote ast, dynamic context) {
     this.simple = false;
   }
 }

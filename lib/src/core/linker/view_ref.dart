@@ -1,14 +1,14 @@
 import "package:angular2/src/core/change_detection/constants.dart"
     show ChangeDetectionStrategy;
-import "package:angular2/src/core/linker/view_utils.dart";
+import "package:angular2/src/core/linker/app_view_utils.dart";
 
 import "../change_detection/change_detector_ref.dart" show ChangeDetectorRef;
-import "view.dart" show AppView;
+import "app_view.dart" show AppView;
 
 abstract class ViewRef {
   bool get destroyed;
 
-  onDestroy(Function callback);
+  void onDestroy(OnDestroyCallback callback);
 }
 
 /// Represents an Angular View.
@@ -65,56 +65,62 @@ abstract class EmbeddedViewRef extends ViewRef {
   List<dynamic> get rootNodes;
 
   /// Destroys the view and all of the data structures associated with it.
-  destroy();
+  void destroy();
+
+  /// Marks the node for change detection.
+  void markForCheck();
 }
 
-class ViewRef_ implements EmbeddedViewRef, ChangeDetectorRef {
-  final AppView<dynamic> _view;
+class ViewRefImpl implements EmbeddedViewRef, ChangeDetectorRef {
+  final AppView appView;
 
-  ViewRef_(this._view);
+  ViewRefImpl(this.appView);
 
-  AppView<dynamic> get internalView => _view;
+  @Deprecated('Use appView instead')
+  AppView<dynamic> get internalView => appView;
 
-  List get rootNodes => _view.flatRootNodes;
+  List get rootNodes => appView.flatRootNodes;
 
   ChangeDetectorRef get changeDetectorRef => this;
 
   void setLocal(String variableName, dynamic value) {
-    _view.setLocal(variableName, value);
+    appView.setLocal(variableName, value);
   }
 
-  bool hasLocal(String variableName) => _view.hasLocal(variableName);
+  bool hasLocal(String variableName) => appView.hasLocal(variableName);
 
-  bool get destroyed => _view.destroyed;
+  bool get destroyed => appView.destroyed;
 
+  @override
   void markForCheck() {
-    _view.markPathToRootAsCheckOnce();
+    appView.markPathToRootAsCheckOnce();
   }
 
   void detach() {
-    _view.cdMode = ChangeDetectionStrategy.Detached;
+    appView.cdMode = ChangeDetectionStrategy.Detached;
   }
 
   void detectChanges() {
-    _view.detectChanges();
+    appView.detectChanges();
   }
 
   void checkNoChanges() {
-    ViewUtils.enterThrowOnChanges();
-    _view.detectChanges();
-    ViewUtils.exitThrowOnChanges();
+    AppViewUtils.enterThrowOnChanges();
+    appView.detectChanges();
+    AppViewUtils.exitThrowOnChanges();
   }
 
   void reattach() {
-    _view.cdMode = ChangeDetectionStrategy.CheckAlways;
+    appView.cdMode = ChangeDetectionStrategy.CheckAlways;
     markForCheck();
   }
 
-  onDestroy(Function callback) {
-    _view.disposables.add(callback);
+  @override
+  void onDestroy(OnDestroyCallback callback) {
+    appView.addOnDestroyCallback(callback);
   }
 
-  destroy() {
-    _view.destroy();
+  void destroy() {
+    appView.destroy();
   }
 }

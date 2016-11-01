@@ -1,61 +1,70 @@
-import "package:angular2/src/core/di.dart" show Inject, Injectable;
-import "package:angular2/src/facade/collection.dart" show SetWrapper;
-import "package:angular2/src/platform/dom/dom_adapter.dart" show DOM;
+import 'dart:html';
 
-import "dom_tokens.dart" show DOCUMENT;
+import 'package:angular2/src/core/render/api.dart';
 
-@Injectable()
-class SharedStylesHost {
-  /** @internal */
+/// Implementation of DomSharedStyleHost for DOM.
+class DomSharedStylesHost implements SharedStylesHost {
   List<String> _styles = [];
-  /** @internal */
   var _stylesSet = new Set<String>();
-  SharedStylesHost() {}
-  addStyles(List<String> styles) {
+  // Native ShadowDOM hosts.
+  List _nativeHosts;
+  final HeadElement _rootHost;
+
+  DomSharedStylesHost(HtmlDocument doc) : _rootHost = doc.head;
+
+  @override
+  dynamic createStyleElement(String css) {
+    StyleElement el = document.createElement('STYLE');
+    el.text = css;
+    return el;
+  }
+
+  @override
+  void addStyles(List<String> styles) {
+    int styleCount = styles.length;
     var additions = <String>[];
-    styles.forEach((style) {
-      if (!SetWrapper.has(this._stylesSet, style)) {
-        this._stylesSet.add(style);
-        this._styles.add(style);
-        additions.add(style);
-      }
-    });
-    this.onStylesAdded(additions);
-  }
-
-  onStylesAdded(List<String> additions) {}
-  List<String> getAllStyles() {
-    return this._styles;
-  }
-}
-
-@Injectable()
-class DomSharedStylesHost extends SharedStylesHost {
-  var _hostNodes = new Set<dynamic>();
-  DomSharedStylesHost(@Inject(DOCUMENT) dynamic doc) : super() {
-    /* super call moved to initializer */;
-    this._hostNodes.add(doc.head);
-  }
-  /** @internal */
-  _addStylesToHost(List<String> styles, dynamic host) {
-    for (var i = 0; i < styles.length; i++) {
-      var style = styles[i];
-      DOM.appendChild(host, DOM.createStyleElement(style));
+    for (int i = 0; i < styleCount; i++) {
+      String style = styles[i];
+      if (_stylesSet.contains(style)) continue;
+      _stylesSet.add(style);
+      _styles.add(style);
+      additions.add(style);
+      _rootHost.append(createStyleElement(style));
+    }
+    if (_nativeHosts != null) {
+      onStylesAdded(additions);
     }
   }
 
-  addHost(dynamic hostNode) {
-    this._addStylesToHost(this._styles, hostNode);
-    this._hostNodes.add(hostNode);
+  @override
+  List<String> getAllStyles() {
+    return _styles;
   }
 
-  removeHost(dynamic hostNode) {
-    SetWrapper.delete(this._hostNodes, hostNode);
+  void _addStylesToHost(List<String> styles, dynamic host) {
+    int styleCount = styles.length;
+    for (var i = 0; i < styleCount; i++) {
+      host.append(createStyleElement(styles[i]));
+    }
   }
 
-  onStylesAdded(List<String> additions) {
-    this._hostNodes.forEach((hostNode) {
-      this._addStylesToHost(additions, hostNode);
+  @override
+  void addHost(dynamic hostNode) {
+    Node host = hostNode;
+    _addStylesToHost(_styles, host);
+    _nativeHosts ??= <Node>[];
+    _nativeHosts.add(hostNode);
+  }
+
+  @override
+  void removeHost(dynamic hostNode) {
+    _nativeHosts.remove(hostNode);
+  }
+
+  void onStylesAdded(List<String> additions) {
+    if (_nativeHosts == null) return;
+    _nativeHosts.forEach((hostNode) {
+      _addStylesToHost(additions, hostNode);
     });
   }
 }

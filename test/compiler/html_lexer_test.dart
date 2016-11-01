@@ -1,13 +1,13 @@
 library angular2.test.compiler.html_lexer_test;
 
-import "package:angular2/src/facade/exceptions.dart" show BaseException;
 import "package:angular2/src/compiler/html_lexer.dart"
     show tokenizeHtml, HtmlToken, HtmlTokenType, HtmlTokenError;
 import "package:angular2/src/compiler/parse_util.dart"
     show ParseSourceSpan, ParseLocation, ParseSourceFile;
+import "package:angular2/src/facade/exceptions.dart" show BaseException;
 import 'package:test/test.dart';
 
-main() {
+void main() {
   group("HtmlLexer", () {
     group("line/column numbers", () {
       test("should work without newlines", () {

@@ -1,8 +1,5 @@
-import "package:angular2/src/facade/collection.dart"
-    show ListWrapper, StringMapWrapper;
 import "package:angular2/src/facade/exceptions.dart" show BaseException;
-import "package:angular2/src/facade/lang.dart"
-    show isBlank, isPresent, looseIdentical, hasConstructor;
+import "package:angular2/src/facade/lang.dart" show looseIdentical;
 
 import "../model.dart" show Control, ControlGroup;
 import "../validators.dart" show Validators;
@@ -21,14 +18,12 @@ import "select_control_value_accessor.dart" show SelectControlValueAccessor;
 import "validators.dart" show ValidatorFn, AsyncValidatorFn;
 
 List<String> controlPath(String name, ControlContainer parent) {
-  var p = ListWrapper.clone(parent.path);
-  p.add(name);
-  return p;
+  return parent.path.toList()..add(name);
 }
 
 void setUpControl(Control control, NgControl dir) {
-  if (isBlank(control)) _throwError(dir, "Cannot find control");
-  if (isBlank(dir.valueAccessor)) _throwError(dir, "No value accessor for");
+  if (control == null) _throwError(dir, "Cannot find control");
+  if (dir.valueAccessor == null) _throwError(dir, "No value accessor for");
   control.validator = Validators.compose([control.validator, dir.validator]);
   control.asyncValidator =
       Validators.composeAsync([control.asyncValidator, dir.asyncValidator]);
@@ -46,8 +41,8 @@ void setUpControl(Control control, NgControl dir) {
   dir.valueAccessor.registerOnTouched(() => control.markAsTouched());
 }
 
-setUpControlGroup(ControlGroup control, NgControlGroup dir) {
-  if (isBlank(control)) _throwError(dir, "Cannot find control");
+void setUpControlGroup(ControlGroup control, NgControlGroup dir) {
+  if (control == null) _throwError(dir, "Cannot find control");
   control.validator = Validators.compose([control.validator, dir.validator]);
   control.asyncValidator =
       Validators.composeAsync([control.asyncValidator, dir.asyncValidator]);
@@ -59,20 +54,21 @@ void _throwError(AbstractControlDirective dir, String message) {
 }
 
 ValidatorFn composeValidators(List<dynamic> validators) {
-  return isPresent(validators)
-      ? Validators.compose(validators.map(normalizeValidator).toList())
+  return validators != null
+      ? Validators
+          .compose(validators.map/*<ValidatorFn>*/(normalizeValidator).toList())
       : null;
 }
 
 AsyncValidatorFn composeAsyncValidators(List<dynamic> validators) {
-  return isPresent(validators)
+  return validators != null
       ? Validators
           .composeAsync(validators.map(normalizeAsyncValidator).toList())
       : null;
 }
 
 bool isPropertyUpdated(Map<String, dynamic> changes, dynamic viewModel) {
-  if (!StringMapWrapper.contains(changes, "model")) return false;
+  if (!changes.containsKey('model')) return false;
   var change = changes["model"];
   if (change.isFirstChange()) return true;
   return !looseIdentical(viewModel, change.currentValue);
@@ -81,29 +77,29 @@ bool isPropertyUpdated(Map<String, dynamic> changes, dynamic viewModel) {
 // TODO: vsavkin remove it once https://github.com/angular/angular/issues/3011 is implemented
 ControlValueAccessor selectValueAccessor(
     NgControl dir, List<ControlValueAccessor> valueAccessors) {
-  if (isBlank(valueAccessors)) return null;
+  if (valueAccessors == null) return null;
   ControlValueAccessor defaultAccessor;
   ControlValueAccessor builtinAccessor;
   ControlValueAccessor customAccessor;
   valueAccessors.forEach((ControlValueAccessor v) {
-    if (hasConstructor(v, DefaultValueAccessor)) {
+    if (v.runtimeType == DefaultValueAccessor) {
       defaultAccessor = v;
-    } else if (hasConstructor(v, CheckboxControlValueAccessor) ||
-        hasConstructor(v, NumberValueAccessor) ||
-        hasConstructor(v, SelectControlValueAccessor) ||
-        hasConstructor(v, RadioControlValueAccessor)) {
-      if (isPresent(builtinAccessor))
+    } else if (v.runtimeType == CheckboxControlValueAccessor ||
+        v.runtimeType == NumberValueAccessor ||
+        v.runtimeType == SelectControlValueAccessor ||
+        v.runtimeType == RadioControlValueAccessor) {
+      if (builtinAccessor != null)
         _throwError(dir, "More than one built-in value accessor matches");
       builtinAccessor = v;
     } else {
-      if (isPresent(customAccessor))
+      if (customAccessor != null)
         _throwError(dir, "More than one custom value accessor matches");
       customAccessor = v;
     }
   });
-  if (isPresent(customAccessor)) return customAccessor;
-  if (isPresent(builtinAccessor)) return builtinAccessor;
-  if (isPresent(defaultAccessor)) return defaultAccessor;
+  if (customAccessor != null) return customAccessor;
+  if (builtinAccessor != null) return builtinAccessor;
+  if (defaultAccessor != null) return defaultAccessor;
   _throwError(dir, "No valid value accessor for");
   return null;
 }

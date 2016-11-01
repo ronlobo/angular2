@@ -1,15 +1,14 @@
-@TestOn('browser')
+@TestOn('browser && !js')
 library angular2.test.common.directives.ng_for_test;
 
-import "package:angular2/testing_internal.dart";
-import "package:angular2/src/facade/collection.dart" show ListWrapper;
 import "package:angular2/core.dart" show Component, TemplateRef, ContentChild;
 import "package:angular2/src/common/directives/ng_for.dart" show NgFor;
 import "package:angular2/src/common/directives/ng_if.dart" show NgIf;
-import "package:angular2/platform/common_dom.dart" show By;
+import 'package:angular2/src/facade/exceptions.dart' show BaseException;
+import "package:angular2/testing_internal.dart";
 import 'package:test/test.dart';
 
-main() {
+void main() {
   group("ngFor", () {
     var TEMPLATE = '<div><copy-me template=\"ngFor let item of items\">'
         '{{item.toString()}};</copy-me></div>';
@@ -49,7 +48,7 @@ main() {
             .createAsync(TestComponent)
             .then((fixture) {
           fixture.detectChanges();
-          ListWrapper.removeAt(fixture.debugElement.componentInstance.items, 1);
+          fixture.debugElement.componentInstance.items.removeAt(1);
           fixture.detectChanges();
           expect(fixture.debugElement.nativeElement, hasTextContent("1;"));
           completer.done();
@@ -64,7 +63,7 @@ main() {
             .createAsync(TestComponent)
             .then((fixture) {
           fixture.detectChanges();
-          ListWrapper.removeAt(fixture.debugElement.componentInstance.items, 0);
+          fixture.debugElement.componentInstance.items.removeAt(0);
           ((fixture.debugElement.componentInstance.items as List<num>)).add(1);
           fixture.detectChanges();
           expect(fixture.debugElement.nativeElement, hasTextContent("2;1;"));
@@ -171,7 +170,9 @@ main() {
             fixture.debugElement.componentInstance.items = 'whaaa';
             fixture.detectChanges();
           } catch (e) {
-            msg = e.originalException.toString();
+            msg = e is BaseException
+                ? e.toString()
+                : e.originalException.toString();
           }
           expect(
               msg,
@@ -607,7 +608,7 @@ main() {
 }
 
 class Foo {
-  toString() {
+  String toString() {
     return "foo";
   }
 }

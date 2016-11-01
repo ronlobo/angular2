@@ -1,14 +1,13 @@
 import "dart:async";
 
-import "package:angular2/src/core/di.dart" show Injectable;
+import "package:angular2/src/core/di.dart" show Injectable, Injector;
+import "package:angular2/src/core/linker/app_element.dart";
 import "package:angular2/src/core/linker/component_factory.dart"
-    show ComponentFactory;
+    show ComponentFactory, NgViewFactory;
 import "package:angular2/src/core/linker/component_resolver.dart"
     show ComponentResolver;
 import "package:angular2/src/core/linker/injector_factory.dart"
     show CodegenInjectorFactory;
-import "package:angular2/src/facade/async.dart" show PromiseWrapper;
-import "package:angular2/src/facade/collection.dart" show ListWrapper;
 import "package:angular2/src/facade/exceptions.dart" show BaseException;
 
 import "compile_metadata.dart"
@@ -32,11 +31,9 @@ import "view_compiler/injector_compiler.dart" show InjectorCompiler;
 import "view_compiler/view_compiler.dart" show ViewCompiler;
 import "xhr.dart" show XHR;
 
-/**
- * An internal module of the Angular compiler that begins with component types,
- * extracts templates, and eventually produces a compiled version of the component
- * ready for linking into an application.
- */
+/// An internal module of the Angular compiler that begins with component types,
+/// extracts templates, and eventually produces a compiled version of the component
+/// ready for linking into an application.
 @Injectable()
 class RuntimeCompiler implements ComponentResolver {
   RuntimeMetadataResolver _runtimeMetadataResolver;
@@ -90,7 +87,7 @@ class RuntimeCompiler implements ComponentResolver {
             compMeta.selector, compiledTemplate.viewFactory, componentType));
   }
 
-  clearCache() {
+  void clearCache() {
     this._styleCache.clear();
     this._compiledTemplateCache.clear();
     this._compiledTemplateDone.clear();
@@ -116,9 +113,10 @@ class RuntimeCompiler implements ComponentResolver {
                 .toList());
       done = Future.wait(futures).then/*<Future<CompiledTemplate>>*/(
           (List<dynamic> stylesAndNormalizedViewDirMetas) {
+        _ResolvedStyles resolvedStyles = stylesAndNormalizedViewDirMetas[0];
         var normalizedViewDirMetas = stylesAndNormalizedViewDirMetas.sublist(1)
             as List<CompileDirectiveMetadata>;
-        var styles = stylesAndNormalizedViewDirMetas[0];
+        var styles = resolvedStyles.styles;
         var parsedTemplate = this._templateParser.parse(
             compMeta,
             compMeta.template.template,
@@ -126,10 +124,11 @@ class RuntimeCompiler implements ComponentResolver {
             pipes,
             compMeta.type.name);
         var childPromises = <Future>[];
-        compiledTemplate.init(this._compileComponent(
+        compiledTemplate.init(_compileComponentViewFactory(
             compMeta,
             parsedTemplate,
-            styles as List<String>,
+            resolvedStyles.compileResult,
+            styles,
             pipes,
             compilingComponentsPath,
             childPromises));
@@ -142,9 +141,10 @@ class RuntimeCompiler implements ComponentResolver {
     return compiledTemplate;
   }
 
-  Function _compileComponent(
+  NgViewFactory _compileComponentViewFactory(
       CompileDirectiveMetadata compMeta,
       List<TemplateAst> parsedTemplate,
+      StylesCompileResult stylesCompileResult,
       List<String> styles,
       List<CompilePipeMetadata> pipes,
       List<dynamic> compilingComponentsPath,
@@ -152,11 +152,11 @@ class RuntimeCompiler implements ComponentResolver {
     var compileResult = this._viewCompiler.compileComponent(
         compMeta,
         parsedTemplate,
+        stylesCompileResult,
         new ir.ExternalExpr(new CompileIdentifierMetadata(runtime: styles)),
         pipes);
     compileResult.dependencies.forEach((dep) {
-      var childCompilingComponentsPath =
-          ListWrapper.clone(compilingComponentsPath);
+      var childCompilingComponentsPath = new List.from(compilingComponentsPath);
       var childCacheKey = dep.comp.type.runtime;
       List<CompileDirectiveMetadata> childViewDirectives = this
           ._runtimeMetadataResolver
@@ -169,30 +169,39 @@ class RuntimeCompiler implements ComponentResolver {
       childCompilingComponentsPath.add(childCacheKey);
       var childComp = _loadAndCompileComponent(dep.comp.type.runtime, dep.comp,
           childViewDirectives, childViewPipes, childCompilingComponentsPath);
+      // ComponentFactory init may not have been called yet, so assign
+      // proxyViewFactory that will forward calls correctly after
+      // initialization.
       dep.factoryPlaceholder.runtime = childComp.proxyViewFactory;
-      dep.factoryPlaceholder.name =
-          '''viewFactory_${ dep . comp . type . name}''';
+      dep.factoryPlaceholder.name = 'viewFactory_${dep.comp.type.name}';
       if (!childIsRecursive) {
         // Only wait for a child if it is not a cycle
         childPromises.add(this._compiledTemplateDone[childCacheKey]);
       }
     });
-    return interpretStatements(compileResult.statements,
-        compileResult.viewFactoryVar, new InterpretiveAppViewInstanceFactory());
+    // Returns NgViewFactory that interprets viewFactoryVar for the AppView.
+    return interpretStatements(
+        compileResult.statements,
+        compileResult.viewFactoryVar,
+        new InterpretiveAppViewInstanceFactory()) as NgViewFactory;
   }
 
-  Future<List<String>> _compileComponentStyles(
+  Future<_ResolvedStyles> _compileComponentStyles(
       CompileDirectiveMetadata compMeta) {
     var compileResult = this._styleCompiler.compileComponent(compMeta);
-    return this._resolveStylesCompileResult(compMeta.type.name, compileResult);
+    return this
+        ._resolveStylesCompileResult(compMeta.type.name, compileResult)
+        .then((List<String> styles) {
+      return new _ResolvedStyles(compileResult, styles);
+    });
   }
 
   Future<List<String>> _resolveStylesCompileResult(
       String sourceUrl, StylesCompileResult result) {
     var promises =
         result.dependencies.map((dep) => this._loadStylesheetDep(dep)).toList();
-    return PromiseWrapper.all(promises).then((cssTexts) {
-      var nestedCompileResultPromises = [];
+    return Future.wait(promises).then((cssTexts) {
+      var nestedCompileResultPromises = <Future>[];
       for (var i = 0; i < result.dependencies.length; i++) {
         var dep = result.dependencies[i];
         var cssText = cssTexts[i];
@@ -202,7 +211,7 @@ class RuntimeCompiler implements ComponentResolver {
         nestedCompileResultPromises.add(this
             ._resolveStylesCompileResult(dep.sourceUrl, nestedCompileResult));
       }
-      return PromiseWrapper.all(nestedCompileResultPromises);
+      return Future.wait(nestedCompileResultPromises);
     }).then((nestedStylesArr) {
       for (var i = 0; i < result.dependencies.length; i++) {
         var dep = result.dependencies[i];
@@ -226,20 +235,30 @@ class RuntimeCompiler implements ComponentResolver {
 }
 
 class CompiledTemplate {
-  Function viewFactory = null;
-  Function proxyViewFactory;
+  NgViewFactory viewFactory;
+
+  /// Proxy to viewFactory that will eventually be available when viewFactory
+  /// gets initialized.
+  NgViewFactory proxyViewFactory;
+
   CompiledTemplate() {
-    this.proxyViewFactory = (viewUtils, childInjector, contextEl) =>
-        this.viewFactory(viewUtils, childInjector, contextEl);
+    proxyViewFactory = (Injector childInjector, AppElement contextEl) =>
+        viewFactory(childInjector, contextEl);
   }
-  init(Function viewFactory) {
-    this.viewFactory = viewFactory;
+  void init(NgViewFactory factory) {
+    viewFactory = factory;
   }
 }
 
-assertComponent(CompileDirectiveMetadata meta) {
+void assertComponent(CompileDirectiveMetadata meta) {
   if (!meta.isComponent) {
     throw new BaseException(
         '''Could not compile \'${ meta . type . name}\' because it is not a component.''');
   }
+}
+
+class _ResolvedStyles {
+  final List<String> styles;
+  final StylesCompileResult compileResult;
+  _ResolvedStyles(this.compileResult, this.styles);
 }

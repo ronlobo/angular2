@@ -1,21 +1,22 @@
-@TestOn('browser')
+@TestOn('browser && !js')
 library angular2.test.common.pipes.json_pipe_test;
 
-import 'package:angular2/testing_internal.dart';
-import 'package:angular2/src/facade/lang.dart' show Json, StringWrapper;
-import 'package:angular2/core.dart' show Component;
 import 'package:angular2/common.dart' show JsonPipe;
+import 'package:angular2/core.dart' show Component;
+import 'package:angular2/src/facade/lang.dart' show Json;
+import 'package:angular2/testing_internal.dart';
 import 'package:test/test.dart';
 
-main() {
+void main() {
   group('JsonPipe', () {
     var regNewLine = '\n';
     var inceptionObj;
     var inceptionObjString;
     var pipe;
     String normalize(String obj) {
-      return StringWrapper.replace(obj, regNewLine, '');
+      return obj.replaceFirst(regNewLine, '');
     }
+
     setUp(() {
       inceptionObj = {
         'dream': {

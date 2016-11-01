@@ -1,9 +1,6 @@
 @TestOn('browser')
 library angular2.test.core.linker.app_injector_integration_test;
 
-import "package:angular2/testing_internal.dart";
-import "package:angular2/src/facade/lang.dart" show stringify;
-import "package:angular2/src/facade/exceptions.dart" show BaseException;
 import "package:angular2/core.dart"
     show
         Injector,
@@ -11,11 +8,14 @@ import "package:angular2/core.dart"
         Injectable,
         Provider,
         Inject,
-        SelfMetadata,
+        Self,
         Optional,
         InjectorModule,
         ComponentResolver,
         Provides;
+import "package:angular2/src/facade/exceptions.dart" show BaseException;
+import "package:angular2/src/facade/lang.dart" show stringify;
+import "package:angular2/testing_internal.dart";
 import 'package:test/test.dart';
 
 class Engine {}
@@ -30,7 +30,7 @@ class DashboardSoftware {}
 
 @Injectable()
 class Dashboard {
-  Dashboard(DashboardSoftware software) {}
+  Dashboard(DashboardSoftware software);
 }
 
 class TurboEngine extends Engine {}
@@ -76,11 +76,11 @@ class CarWithInject {
 
 @Injectable()
 class CyclicEngine {
-  CyclicEngine(Car car) {}
+  CyclicEngine(Car car);
 }
 
 class NoAnnotations {
-  NoAnnotations(secretDependency) {}
+  NoAnnotations(secretDependency);
 }
 
 factoryFn(a) {}
@@ -103,14 +103,12 @@ class SomeModuleWithProp {
 }
 
 @InjectorModule(providers: const [Car])
-class SomeChildModuleWithProvider {
-  SomeChildModuleWithProvider() {}
-}
+class SomeChildModuleWithProvider {}
 
 @InjectorModule()
 class SomeChildModuleWithDeps {
   SomeService someService;
-  SomeChildModuleWithDeps(this.someService) {}
+  SomeChildModuleWithDeps(this.someService);
 }
 
 @InjectorModule()
@@ -121,10 +119,10 @@ class SomeChildModuleWithProp {
 
 @InjectorModule()
 class SomeModuleWithUnknownArgs {
-  SomeModuleWithUnknownArgs(a, b, c) {}
+  SomeModuleWithUnknownArgs(a, b, c);
 }
 
-main() {
+void main() {
   group("generated injector integration tests", () {
     ComponentResolver compiler;
     setUp(() async {
@@ -137,6 +135,7 @@ main() {
           .createInjectorFactory(SomeModule, providers)
           .create(parent);
     }
+
     test("should instantiate a class without dependencies", () {
       var injector = createInjector([Engine]);
       var engine = injector.get(Engine);
@@ -162,11 +161,14 @@ main() {
               "and that 'NoAnnotations' is decorated with Injectable."));
     });
     test("should throw when no type and not @Inject (factory case)", () {
+      var funcRegExp = "'\.*factoryFn\.*'";
       expect(
           () => createInjector([provide("someToken", useFactory: factoryFn)]),
-          throwsWith("Cannot resolve all parameters for 'factoryFn'(?). "
-              "Make sure that all the parameters are decorated with Inject or have valid type annotations "
-              "and that 'factoryFn' is decorated with Injectable."));
+          throwsWith(new RegExp("Cannot resolve all parameters for $funcRegExp"
+              r"\(\?\)\. "
+              "Make sure that all the parameters are decorated with Inject or "
+              "have valid type annotations and that $funcRegExp is decorated "
+              r"with Injectable\.")));
     });
     test("should cache instances", () {
       var injector = createInjector([Engine]);
@@ -180,9 +182,10 @@ main() {
       expect(engine, "fake engine");
     });
     test("should provide to a factory", () {
-      sportsCarFactory(e) {
+      SportsCar sportsCarFactory(e) {
         return new SportsCar(e);
       }
+
       var injector = createInjector([
         Engine,
         provide(Car, useFactory: sportsCarFactory, deps: [Engine])
@@ -335,7 +338,7 @@ main() {
           var inj = createInjector([
             Engine,
             provide(Car, useFactory: (e) => new Car(e), deps: [
-              [Engine, new SelfMetadata()]
+              [Engine, new Self()]
             ])
           ]);
           expect(inj.get(Car), new isInstanceOf<Car>());
@@ -344,7 +347,7 @@ main() {
           expect(
               () => createInjector([
                     provide(Car, useFactory: (e) => new Car(e), deps: [
-                      [Engine, new SelfMetadata()]
+                      [Engine, new Self()]
                     ])
                   ]),
               throwsWith(new RegExp(r'No provider for Engine')));
@@ -420,6 +423,7 @@ main() {
             .createInjectorFactory(mainModuleType, providers)
             .create(null, mainModule);
       }
+
       test("should support multi providers", () {
         var inj = createInjector(
             SomeModuleWithProp,

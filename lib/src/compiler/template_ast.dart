@@ -1,11 +1,11 @@
-import 'expression_parser/ast.dart' show AST;
+import '../core/security.dart';
 import 'compile_metadata.dart'
     show
         CompileDirectiveMetadata,
         CompileTokenMetadata,
         CompileProviderMetadata;
+import 'expression_parser/ast.dart' show AST;
 import 'parse_util.dart' show ParseSourceSpan;
-import '../core/security.dart';
 
 /// An Abstract Syntax Tree node representing part of a parsed Angular template.
 abstract class TemplateAst {
@@ -21,7 +21,7 @@ class TextAst implements TemplateAst {
   String value;
   num ngContentIndex;
   ParseSourceSpan sourceSpan;
-  TextAst(this.value, this.ngContentIndex, this.sourceSpan) {}
+  TextAst(this.value, this.ngContentIndex, this.sourceSpan);
   dynamic visit(TemplateAstVisitor visitor, dynamic context) {
     return visitor.visitText(this, context);
   }
@@ -32,7 +32,7 @@ class BoundTextAst implements TemplateAst {
   AST value;
   num ngContentIndex;
   ParseSourceSpan sourceSpan;
-  BoundTextAst(this.value, this.ngContentIndex, this.sourceSpan) {}
+  BoundTextAst(this.value, this.ngContentIndex, this.sourceSpan);
   dynamic visit(TemplateAstVisitor visitor, dynamic context) {
     return visitor.visitBoundText(this, context);
   }
@@ -43,7 +43,7 @@ class AttrAst implements TemplateAst {
   String name;
   String value;
   ParseSourceSpan sourceSpan;
-  AttrAst(this.name, this.value, this.sourceSpan) {}
+  AttrAst(this.name, this.value, this.sourceSpan);
   dynamic visit(TemplateAstVisitor visitor, dynamic context) {
     return visitor.visitAttr(this, context);
   }
@@ -67,15 +67,12 @@ class BoundElementPropertyAst implements TemplateAst {
 /// A binding for an element event (e.g. (event)='handler()').
 class BoundEventAst implements TemplateAst {
   String name;
-  String target;
   AST handler;
   ParseSourceSpan sourceSpan;
-  BoundEventAst(this.name, this.target, this.handler, this.sourceSpan) {}
+  BoundEventAst(this.name, this.handler, this.sourceSpan);
   dynamic visit(TemplateAstVisitor visitor, dynamic context) {
     return visitor.visitEvent(this, context);
   }
-
-  get fullName => target == null ? name : '${target}:${name}';
 }
 
 /// A reference declaration on an element (e.g. let someName='expression').
@@ -83,7 +80,7 @@ class ReferenceAst implements TemplateAst {
   String name;
   CompileTokenMetadata value;
   ParseSourceSpan sourceSpan;
-  ReferenceAst(this.name, this.value, this.sourceSpan) {}
+  ReferenceAst(this.name, this.value, this.sourceSpan);
   dynamic visit(TemplateAstVisitor visitor, dynamic context) {
     return visitor.visitReference(this, context);
   }
@@ -94,7 +91,7 @@ class VariableAst implements TemplateAst {
   String name;
   String value;
   ParseSourceSpan sourceSpan;
-  VariableAst(this.name, this.value, this.sourceSpan) {}
+  VariableAst(this.name, this.value, this.sourceSpan);
   dynamic visit(TemplateAstVisitor visitor, dynamic context) {
     return visitor.visitVariable(this, context);
   }

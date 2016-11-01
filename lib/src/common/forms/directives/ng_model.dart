@@ -1,7 +1,6 @@
 import "package:angular2/core.dart"
     show OnChanges, SimpleChange, Directive, Provider, Inject, Optional, Self;
-import "package:angular2/src/facade/async.dart"
-    show EventEmitter, ObservableWrapper;
+import "package:angular2/src/facade/async.dart" show EventEmitter;
 
 import "../model.dart" show Control;
 import "../validators.dart" show NG_VALIDATORS, NG_ASYNC_VALIDATORS;
@@ -19,27 +18,29 @@ import "validators.dart" show ValidatorFn, AsyncValidatorFn;
 
 const formControlBinding = const Provider(NgControl, useExisting: NgModel);
 
-/**
- * Binds a domain model to a form control.
- *
- * ### Usage
- *
- * `ngModel` binds an existing domain model to a form control. For a
- * two-way binding, use `[(ngModel)]` to ensure the model updates in
- * both directions.
- *
- * ### Example ([live demo](http://plnkr.co/edit/R3UX5qDaUqFO2VYR0UzH?p=preview))
- *  ```typescript
- * @Component({
- *      selector: "search-comp",
- *      directives: [FORM_DIRECTIVES],
- *      template: `<input type='text' [(ngModel)]="searchQuery">`
- *      })
- * class SearchComp {
- *  searchQuery: string;
- * }
- *  ```
- */
+/// Creates a form [NgControl] instance from a domain model and binds it to a
+/// form control element. The form [NgControl] instance tracks the value,
+/// user interaction, and validation status of the control and keeps the view
+/// synced with the model. If used within a parent form, the directive will
+/// also register itself with the form as a child control.
+///
+/// This directive can be used by itself or as part of a larger form. All you
+/// need is the `ngModel` selector to activate it. For a two-way binding, use
+/// the `[(ngModel)]` syntax to ensure the model updates in both directions.
+///
+/// Learn more about `ngModel` in the Guide [Forms](docs/guide/forms.html#ngModel)
+/// and [Template Syntax](docs/guide/template-syntax.html#ngModel) pages.
+///
+/// ### Examples
+///
+/// {@example docs/template-syntax/lib/app_component.html region=NgModel-1}
+///
+/// This is equivalent to having separate bindings:
+///
+/// {@example docs/template-syntax/lib/app_component.html region=NgModel-3}
+///
+/// Try the [live example][ex].
+/// [ex]: examples/template-syntax/#ngModel
 @Directive(
     selector: "[ngModel]:not([ngControl]):not([ngFormControl])",
     providers: const [formControlBinding],
@@ -49,11 +50,9 @@ const formControlBinding = const Provider(NgControl, useExisting: NgModel);
 class NgModel extends NgControl implements OnChanges {
   List<dynamic> _validators;
   List<dynamic> _asyncValidators;
-  /** @internal */
   var _control = new Control();
-  /** @internal */
   var _added = false;
-  var update = new EventEmitter();
+  var update = new EventEmitter(false);
   dynamic model;
   dynamic viewModel;
   NgModel(
@@ -70,10 +69,9 @@ class NgModel extends NgControl implements OnChanges {
       @Inject(NG_VALUE_ACCESSOR)
           List<ControlValueAccessor> valueAccessors)
       : super() {
-    /* super call moved to initializer */;
     this.valueAccessor = selectValueAccessor(this, valueAccessors);
   }
-  ngOnChanges(Map<String, SimpleChange> changes) {
+  void ngOnChanges(Map<String, SimpleChange> changes) {
     if (!this._added) {
       setUpControl(this._control, this);
       this._control.updateValueAndValidity(emitEvent: false);
@@ -103,6 +101,6 @@ class NgModel extends NgControl implements OnChanges {
 
   void viewToModelUpdate(dynamic newValue) {
     this.viewModel = newValue;
-    ObservableWrapper.callEmit(this.update, newValue);
+    this.update.add(newValue);
   }
 }

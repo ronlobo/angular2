@@ -17,9 +17,7 @@ export "change_detector_ref.dart" show ChangeDetectorRef;
 export "constants.dart"
     show
         ChangeDetectionStrategy,
-        CHANGE_DETECTION_STRATEGY_VALUES,
         ChangeDetectorState,
-        CHANGE_DETECTOR_STATE_VALUES,
         isDefaultChangeDetectionStrategy;
 export "differs/default_iterable_differ.dart"
     show DefaultIterableDifferFactory, CollectionChangeRecord;
@@ -31,15 +29,12 @@ export "differs/keyvalue_differs.dart"
     show KeyValueDiffers, KeyValueDiffer, KeyValueDifferFactory;
 export "pipe_transform.dart" show PipeTransform;
 
-/**
- * Structural diffing for `Object`s and `Map`s.
- */
+/// Structural diffing for [Map]s.
 const List<KeyValueDifferFactory> keyValDiff = const [
   const DefaultKeyValueDifferFactory()
 ];
-/**
- * Structural diffing for `Iterable` types such as `Array`s.
- */
+
+/// Structural diffing for [Iterable] types such as [List]s.
 const List<IterableDifferFactory> iterableDiff = const [
   const DefaultIterableDifferFactory()
 ];

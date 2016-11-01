@@ -1,6 +1,5 @@
 import "package:angular2/core.dart"
     show Directive, ElementRef, Renderer, Provider;
-import "package:angular2/src/facade/lang.dart" show NumberWrapper;
 
 import "control_value_accessor.dart"
     show NG_VALUE_ACCESSOR, ControlValueAccessor;
@@ -8,15 +7,12 @@ import "control_value_accessor.dart"
 const NUMBER_VALUE_ACCESSOR = const Provider(NG_VALUE_ACCESSOR,
     useExisting: NumberValueAccessor, multi: true);
 
-/**
- * The accessor for writing a number value and listening to changes that is used by the
- * [NgModel], [NgFormControl], and [NgControlName] directives.
- *
- *  ### Example
- *  ```
- *  <input type="number" [(ngModel)]="age">
- *  ```
- */
+/// The accessor for writing a number value and listening to changes that is used by the
+/// [NgModel], [NgFormControl], and [NgControlName] directives.
+///
+///  ### Example
+///
+///  <input type="number" [(ngModel)]="age">
 @Directive(
     selector:
         "input[type=number][ngControl],input[type=number][ngFormControl],input[type=number][ngModel]",
@@ -33,7 +29,7 @@ class NumberValueAccessor implements ControlValueAccessor {
   ElementRef _elementRef;
   var onChange = (_) {};
   var onTouched = () {};
-  NumberValueAccessor(this._renderer, this._elementRef) {}
+  NumberValueAccessor(this._renderer, this._elementRef);
   void writeValue(value) {
     this
         ._renderer
@@ -42,7 +38,7 @@ class NumberValueAccessor implements ControlValueAccessor {
 
   void registerOnChange(dynamic fn) {
     this.onChange = (value) {
-      fn(value == "" ? null : NumberWrapper.parseFloat(value));
+      fn(value == "" ? null : double.parse(value));
     };
   }
 

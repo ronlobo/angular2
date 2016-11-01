@@ -1,7 +1,7 @@
 import "package:angular2/src/facade/exceptions.dart" show BaseException;
 
 import "injector.dart" show Injector, THROW_IF_NOT_FOUND;
-import "metadata.dart" show SelfMetadata, SkipSelfMetadata;
+import "decorators.dart";
 import "provider.dart" show Provider;
 import "reflective_exceptions.dart"
     show
@@ -24,31 +24,31 @@ const UNDEFINED = const Object();
 
 abstract class ReflectiveProtoInjectorStrategy {
   ResolvedReflectiveProvider getProviderAtIndex(num index);
-  ReflectiveInjectorStrategy createInjectorStrategy(ReflectiveInjector_ inj);
+  ReflectiveInjectorStrategy createInjectorStrategy(ReflectiveInjectorImpl inj);
 }
 
 class ReflectiveProtoInjectorInlineStrategy
     implements ReflectiveProtoInjectorStrategy {
-  ResolvedReflectiveProvider provider0 = null;
-  ResolvedReflectiveProvider provider1 = null;
-  ResolvedReflectiveProvider provider2 = null;
-  ResolvedReflectiveProvider provider3 = null;
-  ResolvedReflectiveProvider provider4 = null;
-  ResolvedReflectiveProvider provider5 = null;
-  ResolvedReflectiveProvider provider6 = null;
-  ResolvedReflectiveProvider provider7 = null;
-  ResolvedReflectiveProvider provider8 = null;
-  ResolvedReflectiveProvider provider9 = null;
-  num keyId0 = null;
-  num keyId1 = null;
-  num keyId2 = null;
-  num keyId3 = null;
-  num keyId4 = null;
-  num keyId5 = null;
-  num keyId6 = null;
-  num keyId7 = null;
-  num keyId8 = null;
-  num keyId9 = null;
+  ResolvedReflectiveProvider provider0;
+  ResolvedReflectiveProvider provider1;
+  ResolvedReflectiveProvider provider2;
+  ResolvedReflectiveProvider provider3;
+  ResolvedReflectiveProvider provider4;
+  ResolvedReflectiveProvider provider5;
+  ResolvedReflectiveProvider provider6;
+  ResolvedReflectiveProvider provider7;
+  ResolvedReflectiveProvider provider8;
+  ResolvedReflectiveProvider provider9;
+  num keyId0;
+  num keyId1;
+  num keyId2;
+  num keyId3;
+  num keyId4;
+  num keyId5;
+  num keyId6;
+  num keyId7;
+  num keyId8;
+  num keyId9;
   ReflectiveProtoInjectorInlineStrategy(ReflectiveProtoInjector protoEI,
       List<ResolvedReflectiveProvider> providers) {
     var length = providers.length;
@@ -108,7 +108,7 @@ class ReflectiveProtoInjectorInlineStrategy
   }
 
   ReflectiveInjectorStrategy createInjectorStrategy(
-      ReflectiveInjector_ injector) {
+      ReflectiveInjectorImpl injector) {
     return new ReflectiveInjectorInlineStrategy(injector, this);
   }
 }
@@ -126,7 +126,7 @@ class ReflectiveProtoInjectorDynamicStrategy
   }
   ResolvedReflectiveProvider getProviderAtIndex(num index) => providers[index];
 
-  ReflectiveInjectorStrategy createInjectorStrategy(ReflectiveInjector_ ei) {
+  ReflectiveInjectorStrategy createInjectorStrategy(ReflectiveInjectorImpl ei) {
     return new ReflectiveInjectorDynamicStrategy(this, ei);
   }
 }
@@ -159,7 +159,7 @@ abstract class ReflectiveInjectorStrategy {
 }
 
 class ReflectiveInjectorInlineStrategy implements ReflectiveInjectorStrategy {
-  ReflectiveInjector_ injector;
+  ReflectiveInjectorImpl injector;
   ReflectiveProtoInjectorInlineStrategy protoStrategy;
   dynamic obj0 = UNDEFINED;
   dynamic obj1 = UNDEFINED;
@@ -171,7 +171,7 @@ class ReflectiveInjectorInlineStrategy implements ReflectiveInjectorStrategy {
   dynamic obj7 = UNDEFINED;
   dynamic obj8 = UNDEFINED;
   dynamic obj9 = UNDEFINED;
-  ReflectiveInjectorInlineStrategy(this.injector, this.protoStrategy) {}
+  ReflectiveInjectorInlineStrategy(this.injector, this.protoStrategy);
   void resetConstructionCounter() {
     this.injector._constructionCounter = 0;
   }
@@ -267,7 +267,7 @@ class ReflectiveInjectorInlineStrategy implements ReflectiveInjectorStrategy {
 
 class ReflectiveInjectorDynamicStrategy implements ReflectiveInjectorStrategy {
   ReflectiveProtoInjectorDynamicStrategy protoStrategy;
-  ReflectiveInjector_ injector;
+  ReflectiveInjectorImpl injector;
   List<dynamic> objs;
   ReflectiveInjectorDynamicStrategy(this.protoStrategy, this.injector) {
     this.objs = new List.filled(protoStrategy.providers.length, UNDEFINED,
@@ -415,7 +415,7 @@ abstract class ReflectiveInjector implements Injector {
   static ReflectiveInjector fromResolvedProviders(
       List<ResolvedReflectiveProvider> providers,
       [Injector parent = null]) {
-    return new ReflectiveInjector_(
+    return new ReflectiveInjectorImpl(
         ReflectiveProtoInjector.fromResolvedProviders(providers), parent);
   }
 
@@ -509,7 +509,7 @@ abstract class ReflectiveInjector implements Injector {
   dynamic get(dynamic token, [dynamic notFoundValue]);
 }
 
-class ReflectiveInjector_ implements ReflectiveInjector {
+class ReflectiveInjectorImpl implements ReflectiveInjector {
   final _proto;
   Injector _parent;
   final Function _debugContext;
@@ -517,8 +517,8 @@ class ReflectiveInjector_ implements ReflectiveInjector {
   ReflectiveInjectorStrategy _strategy;
   num _constructionCounter = 0;
 
-  ReflectiveInjector_(this._proto,
-      [Injector this._parent = null, this._debugContext = null]) {
+  ReflectiveInjectorImpl(this._proto,
+      [this._parent = null, this._debugContext = null]) {
     _strategy = _proto._strategy.createInjectorStrategy(this);
   }
 
@@ -545,7 +545,7 @@ class ReflectiveInjector_ implements ReflectiveInjector {
 
   ReflectiveInjector createChildFromResolved(
           List<ResolvedReflectiveProvider> providers) =>
-      new ReflectiveInjector_(new ReflectiveProtoInjector(providers))
+      new ReflectiveInjectorImpl(new ReflectiveProtoInjector(providers))
         .._parent = this;
 
   dynamic resolveAndInstantiate(dynamic /* Type | Provider */ provider) =>
@@ -764,7 +764,7 @@ class ReflectiveInjector_ implements ReflectiveInjector {
     if (identical(key, INJECTOR_KEY)) {
       return this;
     }
-    if (upperBoundVisibility is SelfMetadata) {
+    if (upperBoundVisibility is Self) {
       return _getByKeySelf(key, notFoundValue);
     } else {
       return _getByKeyDefault(key, notFoundValue, lowerBoundVisibility);
@@ -789,13 +789,13 @@ class ReflectiveInjector_ implements ReflectiveInjector {
   dynamic _getByKeyDefault(
       ReflectiveKey key, dynamic notFoundValue, Object lowerBoundVisibility) {
     Injector inj;
-    if (lowerBoundVisibility is SkipSelfMetadata) {
+    if (lowerBoundVisibility is SkipSelf) {
       inj = this._parent;
     } else {
       inj = this;
     }
-    while (inj is ReflectiveInjector_) {
-      var inj_ = (inj as ReflectiveInjector_);
+    while (inj is ReflectiveInjectorImpl) {
+      var inj_ = (inj as ReflectiveInjectorImpl);
       var obj = inj_._strategy.getObjByKeyId(key.id);
       if (!identical(obj, UNDEFINED)) return obj;
       inj = inj_._parent;
@@ -818,7 +818,7 @@ class ReflectiveInjector_ implements ReflectiveInjector {
 }
 
 var INJECTOR_KEY = ReflectiveKey.get(Injector);
-List<dynamic> _mapProviders(ReflectiveInjector_ injector, Function fn) {
+List<dynamic> _mapProviders(ReflectiveInjectorImpl injector, Function fn) {
   var res = [];
   for (var i = 0; i < injector._proto.numberOfProviders; ++i) {
     res.add(fn(injector._proto.getProviderAtIndex(i)));

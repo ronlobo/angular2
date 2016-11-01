@@ -1,10 +1,9 @@
 library angular2.test.compiler.output.dart_emitter_test;
 
-import "package:angular2/src/facade/lang.dart" show isBlank;
-import "package:angular2/src/compiler/output/dart_emitter.dart"
-    show DartEmitter;
 import "package:angular2/src/compiler/compile_metadata.dart"
     show CompileIdentifierMetadata;
+import "package:angular2/src/compiler/output/dart_emitter.dart"
+    show DartEmitter;
 import "package:angular2/src/compiler/output/output_ast.dart" as o;
 import "package:test/test.dart";
 
@@ -15,7 +14,7 @@ var sameModuleIdentifier = new CompileIdentifierMetadata(
 var externalModuleIdentifier = new CompileIdentifierMetadata(
     name: "someExternalId", moduleUrl: anotherModuleUrl);
 
-main() {
+void main() {
   // Not supported features of our OutputAst in Dart:
   // - declaring what should be exported via a special statement like `export`.
   //   Dart exports everything that has no `_` in its name.
@@ -30,11 +29,10 @@ main() {
       someVar = o.variable("someVar");
     });
     String emitStmt(o.Statement stmt, [List<String> exportedVars = null]) {
-      if (isBlank(exportedVars)) {
-        exportedVars = [];
-      }
+      exportedVars ??= [];
       return emitter.emitStatements(someModuleUrl, [stmt], exportedVars);
     }
+
     test("should declare variables", () {
       expect(
           emitStmt(someVar.set(o.literal(1)).toDeclStmt()), 'var someVar = 1;');
@@ -235,7 +233,7 @@ main() {
         expect(
             emitStmt(new o.ClassStmt("SomeClass", null, [], [],
                 new o.ClassMethod(null, [], []), [])),
-            ["class SomeClass {", "  SomeClass() {", "  }", "}"].join("\n"));
+            ["class SomeClass {", "  SomeClass();", "}"].join("\n"));
         expect(
             emitStmt(new o.ClassStmt(
                 "SomeClass",
@@ -245,17 +243,13 @@ main() {
                 new o.ClassMethod(
                     null, [new o.FnParam("someParam", o.INT_TYPE)], []),
                 [])),
-            ["class SomeClass {", "  SomeClass(int someParam) {", "  }", "}"]
+            ["class SomeClass {", "  SomeClass(int someParam);", "}"]
                 .join("\n"));
         expect(
             emitStmt(new o.ClassStmt("SomeClass", null, [], [],
                 new o.ClassMethod(null, [], [superCall]), [])),
-            [
-              "class SomeClass {",
-              "  SomeClass(): super(someParam) {",
-              "  }",
-              "}"
-            ].join("\n"));
+            ["class SomeClass {", "  SomeClass(): super(someParam);", "}"]
+                .join("\n"));
         expect(
             emitStmt(new o.ClassStmt("SomeClass", null, [], [],
                 new o.ClassMethod(null, [], [callSomeMethod]), [])),
@@ -273,16 +267,22 @@ main() {
                 [new o.ClassField("someField")], [], null, [])),
             ["class SomeClass {", "  var someField;", "}"].join("\n"));
         expect(
-            emitStmt(new o.ClassStmt("SomeClass", null,
-                [new o.ClassField("someField", o.INT_TYPE)], [], null, [])),
+            emitStmt(new o.ClassStmt(
+                "SomeClass",
+                null,
+                [new o.ClassField("someField", outputType: o.INT_TYPE)],
+                [],
+                null,
+                [])),
             ["class SomeClass {", "  int someField;", "}"].join("\n"));
         expect(
             emitStmt(new o.ClassStmt(
                 "SomeClass",
                 null,
                 [
-                  new o.ClassField(
-                      "someField", o.INT_TYPE, [o.StmtModifier.Final])
+                  new o.ClassField("someField",
+                      outputType: o.INT_TYPE,
+                      modifiers: const [o.StmtModifier.Final])
                 ],
                 [],
                 null,

@@ -9,7 +9,7 @@ import 'types.dart';
 var DOT_REGEX = new RegExp('\\.');
 
 class ReflectionCapabilities implements PlatformReflectionCapabilities {
-  ReflectionCapabilities([metadataReader]) {}
+  ReflectionCapabilities([metadataReader]);
 
   bool isReflectionEnabled() {
     return true;
@@ -318,10 +318,7 @@ class ReflectionCapabilities implements PlatformReflectionCapabilities {
     return closureMirror.function.metadata;
   }
 
-  List _constructorMetadata(Type type) {
-    ClassMirror classMirror = reflectType(type);
-    return classMirror.metadata;
-  }
+  List _constructorMetadata(Type type) => reflectType(type).metadata;
 
   String importUri(Type type) {
     return '${(reflectClass(type).owner as LibraryMirror).uri}';

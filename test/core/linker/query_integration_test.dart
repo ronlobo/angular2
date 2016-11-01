@@ -1,18 +1,14 @@
-@TestOn('browser')
+@TestOn('browser && !js')
 library angular2.test.core.linker.query_integration_test;
 
-import "package:angular2/testing_internal.dart";
-import "package:angular2/src/facade/lang.dart" show isPresent;
-import "package:angular2/src/facade/async.dart" show ObservableWrapper;
+import "package:angular2/common.dart" show NgIf, NgFor;
 import "package:angular2/core.dart"
     show
         Component,
         Directive,
         Injectable,
         TemplateRef,
-        Query,
         QueryList,
-        ViewQuery,
         ContentChildren,
         ViewChildren,
         ContentChild,
@@ -21,11 +17,11 @@ import "package:angular2/core.dart"
         AfterViewInit,
         AfterContentChecked,
         AfterViewChecked;
-import "package:angular2/common.dart" show NgIf, NgFor;
-import "package:angular2/core.dart" show asNativeElements, ViewContainerRef;
+import "package:angular2/core.dart" show ViewContainerRef;
+import "package:angular2/testing_internal.dart";
 import 'package:test/test.dart';
 
-main() {
+void main() {
   group("Query API", () {
     group("querying by directive type", () {
       test(
@@ -444,7 +440,7 @@ main() {
               .then((view) {
             var q = view.debugElement.children[0].getLocal("q");
             view.detectChanges();
-            ObservableWrapper.subscribe(q.query.changes, (_) {
+            q.query.changes.listen((_) {
               expect(q.query.first.text, "1");
               expect(q.query.last.text, "2");
               completer.done();
@@ -470,10 +466,10 @@ main() {
             var q1 = view.debugElement.children[0].getLocal("q1");
             var q2 = view.debugElement.children[0].getLocal("q2");
             var firedQ2 = false;
-            ObservableWrapper.subscribe(q2.query.changes, (_) {
+            q2.query.changes.listen((_) {
               firedQ2 = true;
             });
-            ObservableWrapper.subscribe(q1.query.changes, (_) {
+            q1.query.changes.listen((_) {
               expect(firedQ2, isTrue);
               completer.done();
             });
@@ -819,7 +815,7 @@ main() {
 @Injectable()
 class TextDirective {
   String text;
-  TextDirective() {}
+  TextDirective();
 }
 
 @Component(selector: "needs-content-children", template: "")
@@ -851,7 +847,7 @@ class NeedsContentChild implements AfterContentInit, AfterContentChecked {
   @ContentChild(TextDirective)
   set child(value) {
     this._child = value;
-    this.log.add(["setter", isPresent(value) ? value.text : null]);
+    this.log.add(["setter", value != null ? value.text : null]);
   }
 
   get child {
@@ -860,11 +856,11 @@ class NeedsContentChild implements AfterContentInit, AfterContentChecked {
 
   var log = [];
   ngAfterContentInit() {
-    this.log.add(["init", isPresent(this.child) ? this.child.text : null]);
+    this.log.add(["init", child != null ? child.text : null]);
   }
 
   ngAfterContentChecked() {
-    this.log.add(["check", isPresent(this.child) ? this.child.text : null]);
+    this.log.add(["check", child != null ? child.text : null]);
   }
 }
 
@@ -881,7 +877,7 @@ class NeedsViewChild implements AfterViewInit, AfterViewChecked {
   @ViewChild(TextDirective)
   set child(value) {
     this._child = value;
-    this.log.add(["setter", isPresent(value) ? value.text : null]);
+    this.log.add(["setter", value != null ? value.text : null]);
   }
 
   get child {
@@ -890,11 +886,11 @@ class NeedsViewChild implements AfterViewInit, AfterViewChecked {
 
   var log = [];
   ngAfterViewInit() {
-    this.log.add(["init", isPresent(this.child) ? this.child.text : null]);
+    this.log.add(["init", child != null ? child.text : null]);
   }
 
   ngAfterViewChecked() {
-    this.log.add(["check", isPresent(this.child) ? this.child.text : null]);
+    this.log.add(["check", child != null ? child.text : null]);
   }
 }
 
@@ -914,7 +910,7 @@ class NeedsStaticContentAndViewChild {
 @Directive(selector: "[dir]")
 @Injectable()
 class InertDirective {
-  InertDirective() {}
+  InertDirective();
 }
 
 @Component(
@@ -925,7 +921,7 @@ class InertDirective {
 @Injectable()
 class NeedsQuery {
   QueryList<TextDirective> query;
-  NeedsQuery(@Query(TextDirective) QueryList<TextDirective> query) {
+  NeedsQuery(@ContentChildren(TextDirective) QueryList<TextDirective> query) {
     this.query = query;
   }
 }
@@ -950,7 +946,8 @@ class NeedsFourQueries {
 class NeedsQueryDesc {
   QueryList<TextDirective> query;
   NeedsQueryDesc(
-      @Query(TextDirective, descendants: true) QueryList<TextDirective> query) {
+      @ContentChildren(TextDirective, descendants: true)
+          QueryList<TextDirective> query) {
     this.query = query;
   }
 }
@@ -963,7 +960,8 @@ class NeedsQueryDesc {
 class NeedsQueryByLabel {
   QueryList<dynamic> query;
   NeedsQueryByLabel(
-      @Query("textLabel", descendants: true) QueryList<dynamic> query) {
+      @ContentChildren("textLabel", descendants: true)
+          QueryList<dynamic> query) {
     this.query = query;
   }
 }
@@ -975,7 +973,7 @@ class NeedsQueryByLabel {
 @Injectable()
 class NeedsViewQueryByLabel {
   QueryList<dynamic> query;
-  NeedsViewQueryByLabel(@ViewQuery("textLabel") QueryList<dynamic> query) {
+  NeedsViewQueryByLabel(@ViewChildren("textLabel") QueryList<dynamic> query) {
     this.query = query;
   }
 }
@@ -988,7 +986,7 @@ class NeedsViewQueryByLabel {
 class NeedsQueryByTwoLabels {
   QueryList<dynamic> query;
   NeedsQueryByTwoLabels(
-      @Query("textLabel1,textLabel2", descendants: true)
+      @ContentChildren("textLabel1,textLabel2", descendants: true)
           QueryList<dynamic> query) {
     this.query = query;
   }
@@ -1002,7 +1000,8 @@ class NeedsQueryByTwoLabels {
 @Injectable()
 class NeedsQueryAndProject {
   QueryList<TextDirective> query;
-  NeedsQueryAndProject(@Query(TextDirective) QueryList<TextDirective> query) {
+  NeedsQueryAndProject(
+      @ContentChildren(TextDirective) QueryList<TextDirective> query) {
     this.query = query;
   }
 }
@@ -1015,7 +1014,7 @@ class NeedsQueryAndProject {
 @Injectable()
 class NeedsViewQuery {
   QueryList<TextDirective> query;
-  NeedsViewQuery(@ViewQuery(TextDirective) QueryList<TextDirective> query) {
+  NeedsViewQuery(@ViewChildren(TextDirective) QueryList<TextDirective> query) {
     this.query = query;
   }
 }
@@ -1028,7 +1027,8 @@ class NeedsViewQuery {
 class NeedsViewQueryIf {
   bool show;
   QueryList<TextDirective> query;
-  NeedsViewQueryIf(@ViewQuery(TextDirective) QueryList<TextDirective> query) {
+  NeedsViewQueryIf(
+      @ViewChildren(TextDirective) QueryList<TextDirective> query) {
     this.query = query;
     this.show = false;
   }
@@ -1043,7 +1043,7 @@ class NeedsViewQueryNestedIf {
   bool show;
   QueryList<TextDirective> query;
   NeedsViewQueryNestedIf(
-      @ViewQuery(TextDirective) QueryList<TextDirective> query) {
+      @ViewChildren(TextDirective) QueryList<TextDirective> query) {
     this.query = query;
     this.show = true;
   }
@@ -1060,7 +1060,7 @@ class NeedsViewQueryOrder {
   QueryList<TextDirective> query;
   List<String> list;
   NeedsViewQueryOrder(
-      @ViewQuery(TextDirective) QueryList<TextDirective> query) {
+      @ViewChildren(TextDirective) QueryList<TextDirective> query) {
     this.query = query;
     this.list = ["2", "3"];
   }
@@ -1077,7 +1077,7 @@ class NeedsViewQueryOrderWithParent {
   QueryList<TextDirective> query;
   List<String> list;
   NeedsViewQueryOrderWithParent(
-      @ViewQuery(TextDirective) QueryList<TextDirective> query) {
+      @ViewChildren(TextDirective) QueryList<TextDirective> query) {
     this.query = query;
     this.list = ["2", "3"];
   }
@@ -1089,8 +1089,8 @@ class NeedsTpl {
   ViewContainerRef vc;
   QueryList<TemplateRef> viewQuery;
   QueryList<TemplateRef> query;
-  NeedsTpl(@ViewQuery(TemplateRef) QueryList<TemplateRef> viewQuery,
-      @Query(TemplateRef) QueryList<TemplateRef> query, this.vc) {
+  NeedsTpl(@ViewChildren(TemplateRef) QueryList<TemplateRef> viewQuery,
+      @ContentChildren(TemplateRef) QueryList<TemplateRef> query, this.vc) {
     this.viewQuery = viewQuery;
     this.query = query;
   }
@@ -1105,7 +1105,7 @@ class NeedsNamedTpl {
   TemplateRef viewTpl;
   @ContentChild("tpl")
   TemplateRef contentTpl;
-  NeedsNamedTpl(this.vc) {}
+  NeedsNamedTpl(this.vc);
 }
 
 @Component(selector: "needs-content-children-read", template: "")

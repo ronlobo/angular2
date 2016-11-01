@@ -29,7 +29,7 @@ class DirectiveProcessor extends Transformer implements LazyTransformer {
       id.extension.endsWith('dart') && !isGenerated(id.path);
 
   @override
-  declareOutputs(DeclaringTransform transform) {
+  void declareOutputs(DeclaringTransform transform) {
     transform.declareOutput(_deferredAssetId(transform.primaryId));
     transform.declareOutput(_ngSummaryAssetId(transform.primaryId));
   }
@@ -40,8 +40,7 @@ class DirectiveProcessor extends Transformer implements LazyTransformer {
     return zone.exec(() async {
       var primaryId = transform.primaryInput.id;
       var reader = new AssetReader.fromTransform(transform);
-      var ngMeta =
-          await createNgMeta(reader, primaryId, options.annotationMatcher);
+      var ngMeta = await createNgMeta(reader, primaryId, options);
       if (ngMeta == null || ngMeta.isEmpty) {
         return;
       }

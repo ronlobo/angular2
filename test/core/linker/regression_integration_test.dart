@@ -1,22 +1,23 @@
-@TestOn('browser')
+@TestOn('browser && !js')
 library angular2.test.core.linker.regression_integration_test;
 
 import "dart:async";
-import "package:angular2/testing_internal.dart";
+
+import "package:angular2/common.dart" show NgIf, NgClass;
 import "package:angular2/core.dart"
     show
         Component,
         Pipe,
         PipeTransform,
         provide,
-        ViewMetadata,
+        View,
         PLATFORM_PIPES,
         OpaqueToken,
         Injector;
-import "package:angular2/common.dart" show NgIf, NgClass;
+import "package:angular2/testing_internal.dart";
 import 'package:test/test.dart';
 
-main() {
+void main() {
   // Place to put reproductions for regressions
   group("regressions", () {
     group("platform pipes", () {
@@ -29,7 +30,7 @@ main() {
           tcb
               .overrideView(
                   MyComp,
-                  new ViewMetadata(
+                  new View(
                       template: "{{true | somePipe}}", pipes: [CustomPipe]))
               .createAsync(MyComp)
               .then((fixture) {
@@ -49,7 +50,7 @@ main() {
           tcb
               .overrideView(
                   MyComp,
-                  new ViewMetadata(
+                  new View(
                       template:
                           '''{{\'red\' + (true ? \' border\' : \'\')}}'''))
               .createAsync(MyComp)
@@ -69,6 +70,7 @@ main() {
             .createAsync(MyComp)
             .then((fixture) => fixture.componentInstance.injector);
       }
+
       test(
           "should support providers with an OpaqueToken that contains a `.` in the name",
           () async {
@@ -152,7 +154,7 @@ main() {
         tcb
             .overrideView(
                 MyComp,
-                new ViewMetadata(
+                new View(
                     template:
                         '''A<cmp-content *ngIf="true" [ngClass]="\'red\'">B</cmp-content>C''',
                     directives: [NgClass, NgIf, CmpWithNgContent]))
@@ -170,7 +172,7 @@ main() {
 @Component(selector: "my-comp", template: "")
 class MyComp {
   final Injector injector;
-  MyComp(this.injector) {}
+  MyComp(this.injector);
 }
 
 @Pipe(name: "somePipe", pure: true)

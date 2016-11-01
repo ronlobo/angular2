@@ -1,12 +1,9 @@
 import "package:angular2/platform/common.dart" show LocationStrategy;
 import "package:angular2/src/core/di.dart" show Injectable;
-import "package:angular2/src/facade/async.dart"
-    show EventEmitter, ObservableWrapper;
+import "package:angular2/src/facade/async.dart" show EventEmitter;
 
-/**
- * A mock implementation of [LocationStrategy] that allows tests to fire simulated
- * location events.
- */
+/// A mock implementation of [LocationStrategy] that allows tests to fire
+/// simulated location events.
 @Injectable()
 class MockLocationStrategy extends LocationStrategy {
   String internalBaseHref = "/";
@@ -14,15 +11,12 @@ class MockLocationStrategy extends LocationStrategy {
   String internalTitle = "";
   String internalHash = "";
   List<String> urlChanges = [];
-  /** @internal */
+
   EventEmitter<dynamic> _subject = new EventEmitter();
-  MockLocationStrategy() : super() {
-    /* super call moved to initializer */;
-  }
+  MockLocationStrategy();
   void simulatePopState(String url) {
     this.internalPath = url;
-    ObservableWrapper.callEmit(
-        this._subject, new _MockPopStateEvent(this.path()));
+    this._subject.add(new _MockPopStateEvent(this.path()));
   }
 
   String hash() {
@@ -57,7 +51,7 @@ class MockLocationStrategy extends LocationStrategy {
   }
 
   void onPopState(void fn(dynamic value)) {
-    ObservableWrapper.subscribe(this._subject, fn);
+    this._subject.listen(fn);
   }
 
   String getBaseHref() {
@@ -83,5 +77,5 @@ class _MockPopStateEvent {
   String newUrl;
   bool pop = true;
   String type = "popstate";
-  _MockPopStateEvent(this.newUrl) {}
+  _MockPopStateEvent(this.newUrl);
 }

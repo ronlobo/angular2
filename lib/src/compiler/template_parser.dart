@@ -1,18 +1,16 @@
-import "package:angular2/core.dart"
-    show Injectable, Inject, OpaqueToken, Optional;
+import "package:angular2/di.dart" show Injectable;
 import "package:angular2/src/compiler/schema/element_schema_registry.dart"
     show ElementSchemaRegistry;
 import "package:angular2/src/compiler/selector.dart"
     show CssSelector, SelectorMatcher;
-import "package:angular2/src/core/console.dart" show Console;
-import "package:angular2/src/core/linker/view_utils.dart"
+import "package:angular2/src/core/linker/app_view_utils.dart"
     show MAX_INTERPOLATION_VALUES;
-import "package:angular2/src/facade/collection.dart"
-    show ListWrapper, StringMapWrapper, SetWrapper;
 import "package:angular2/src/facade/exceptions.dart" show BaseException;
-import "package:angular2/src/facade/lang.dart"
-    show RegExpWrapper, StringWrapper;
+import "package:angular2/src/facade/lang.dart" show jsSplit;
+import "package:logging/logging.dart";
 
+import "../core/security.dart";
+import "chars.dart";
 import "compile_metadata.dart"
     show CompileDirectiveMetadata, CompilePipeMetadata;
 import "expression_parser/ast.dart"
@@ -47,8 +45,6 @@ import "template_ast.dart"
         BoundEventAst,
         ReferenceAst,
         TemplateAst,
-        TemplateAstVisitor,
-        templateVisitAll,
         TextAst,
         BoundTextAst,
         EmbeddedTemplateAst,
@@ -59,8 +55,6 @@ import "template_ast.dart"
         BoundDirectivePropertyAst,
         VariableAst;
 import "template_preparser.dart" show preparseElement, PreparsedElementType;
-import "util.dart" show splitAtColon;
-import "../core/security.dart";
 
 // Group 1 = "bind-"
 // Group 2 = "var-"
@@ -84,13 +78,6 @@ const CLASS_PREFIX = "class";
 const STYLE_PREFIX = "style";
 final TEXT_CSS_SELECTOR = CssSelector.parse("*")[0];
 
-/// Provides an array of [TemplateAstVisitor]s which will be used to transform
-/// parsed templates before compilation is invoked, allowing custom expression syntax
-/// and other advanced transformations.
-///
-/// This is currently an internal-only feature and not meant for general use.
-const TEMPLATE_TRANSFORMS = const OpaqueToken("TemplateTransforms");
-
 class TemplateParseError extends ParseError {
   TemplateParseError(
       String message, ParseSourceSpan span, ParseErrorLevel level)
@@ -108,11 +95,9 @@ class TemplateParser {
   Parser _exprParser;
   ElementSchemaRegistry _schemaRegistry;
   HtmlParser _htmlParser;
-  Console _console;
-  List<TemplateAstVisitor> transforms;
+  Logger logger = new Logger('angulardart.templateparser');
 
-  TemplateParser(this._exprParser, this._schemaRegistry, this._htmlParser,
-      this._console, @Optional() @Inject(TEMPLATE_TRANSFORMS) this.transforms);
+  TemplateParser(this._exprParser, this._schemaRegistry, this._htmlParser);
 
   List<TemplateAst> parse(
       CompileDirectiveMetadata component,
@@ -128,7 +113,7 @@ class TemplateParser {
         .where((error) => identical(error.level, ParseErrorLevel.FATAL))
         .toList();
     if (warnings.isNotEmpty) {
-      _console.warn('Template parse warnings:\n${warnings.join("\n")}');
+      logger.warning('Template parse warnings:\n${warnings.join("\n")}');
     }
     if (errors.isNotEmpty) {
       var errorString = errors.join("\n");
@@ -147,33 +132,38 @@ class TemplateParser {
     List<ParseError> errors = htmlAstWithErrors.errors;
     List<TemplateAst> result;
     if (htmlAstWithErrors.rootNodes.length > 0) {
-      var uniqDirectives = removeDuplicates(directives);
+      List<CompileDirectiveMetadata> uniqDirectives;
+      try {
+        uniqDirectives = removeDuplicates(directives);
+      } catch (_) {
+        // Continue since we are trying to report errors.
+        uniqDirectives = directives;
+      }
       var uniqPipes = removeDuplicates(pipes);
       var providerViewContext = new ProviderViewContext(
           component, htmlAstWithErrors.rootNodes[0].sourceSpan);
-      var parseVisitor = new TemplateParseVisitor(
-          providerViewContext,
-          uniqDirectives,
-          uniqPipes,
-          this._exprParser,
-          this._schemaRegistry,
-          component.template?.preserveWhitespace ?? false);
-      result = htmlVisitAll(
-              parseVisitor, htmlAstWithErrors.rootNodes, EMPTY_ELEMENT_CONTEXT)
-          as List<TemplateAst>;
-      errors =
-          (new List.from((new List.from(errors)..addAll(parseVisitor.errors)))
-            ..addAll(providerViewContext.errors));
+      try {
+        var parseVisitor = new TemplateParseVisitor(
+            providerViewContext,
+            uniqDirectives,
+            uniqPipes,
+            this._exprParser,
+            this._schemaRegistry,
+            component.template?.preserveWhitespace ?? false);
+        result = htmlVisitAll(parseVisitor, htmlAstWithErrors.rootNodes,
+            EMPTY_ELEMENT_CONTEXT) as List<TemplateAst>;
+        errors =
+            (new List.from((new List.from(errors)..addAll(parseVisitor.errors)))
+              ..addAll(providerViewContext.errors));
+      } catch (_) {
+        errors = new List.from(errors)..addAll(providerViewContext.errors);
+        result = <TemplateAst>[];
+      }
     } else {
       result = <TemplateAst>[];
     }
     if (errors.length > 0) {
       return new TemplateParseResult(result, errors);
-    }
-    if (this.transforms != null) {
-      this.transforms.forEach((TemplateAstVisitor transform) {
-        result = templateVisitAll(transform, result) as List<TemplateAst>;
-      });
     }
     return new TemplateParseResult(result, errors);
   }
@@ -198,8 +188,9 @@ class TemplateParseVisitor implements HtmlAstVisitor {
       this._schemaRegistry,
       this.preserveWhitespace) {
     this.selectorMatcher = new SelectorMatcher();
-    ListWrapper.forEachWithIndex(directives,
-        (CompileDirectiveMetadata directive, num index) {
+    var index = -1;
+    directives.forEach((CompileDirectiveMetadata directive) {
+      index++;
       var selector = CssSelector.parse(directive.selector);
       this.selectorMatcher.addSelectables(selector, directive);
       this.directivesIndex[directive] = index;
@@ -207,7 +198,7 @@ class TemplateParseVisitor implements HtmlAstVisitor {
     this.pipesByName = new Map<String, CompilePipeMetadata>();
     pipes.forEach((pipe) => this.pipesByName[pipe.name] = pipe);
   }
-  _reportError(String message, ParseSourceSpan sourceSpan,
+  void _reportError(String message, ParseSourceSpan sourceSpan,
       [ParseErrorLevel level = ParseErrorLevel.FATAL]) {
     this.errors.add(new TemplateParseError(message, sourceSpan, level));
   }
@@ -275,7 +266,7 @@ class TemplateParseVisitor implements HtmlAstVisitor {
     }
   }
 
-  _checkPipes(ASTWithSource ast, ParseSourceSpan sourceSpan) {
+  void _checkPipes(ASTWithSource ast, ParseSourceSpan sourceSpan) {
     if (ast == null) return;
     var collector = new PipeCollector();
     ast.visit(collector);
@@ -306,21 +297,25 @@ class TemplateParseVisitor implements HtmlAstVisitor {
       // If preserve white space is turned off, filter out spaces after line
       // breaks and any empty text nodes.
       if (preserveWhitespace == false) {
+        if (!(text.contains('\u00A0') || text.contains(ngSpace))) {
+          text = text.trim();
+        }
         if (text.isEmpty) return null;
         if (_isNewLineWithSpaces(text)) {
-          text = '\n';
+          return null;
         }
       }
-      return new TextAst(text, ngContentIndex, ast.sourceSpan);
+      return new TextAst(
+          text.replaceAll('\uE500', ' '), ngContentIndex, ast.sourceSpan);
     }
   }
 
   bool _isNewLineWithSpaces(String text) {
-    if (text.length <= 1) return false;
-    if (text[0] != '\n') return false;
     int len = text.length;
-    for (int i = 1; i < len; i++) {
-      if (text[i] != ' ') return false;
+    for (int i = 0; i < len; i++) {
+      if (text[i] != '\n' && text[i] != ' ') {
+        return false;
+      }
     }
     return true;
   }
@@ -418,7 +413,7 @@ class TemplateParseVisitor implements HtmlAstVisitor {
         ? CssSelector.parse(preparsedElement.projectAs)[0]
         : elementCssSelector;
     var ngContentIndex = parent.findNgContentIndex(projectionSelector);
-    var parsedElement;
+    TemplateAst parsedElement;
     if (identical(preparsedElement.type, PreparsedElementType.NG_CONTENT)) {
       var elementChildren = element.children;
       if (elementChildren != null && elementChildren.length > 0) {
@@ -508,7 +503,7 @@ class TemplateParseVisitor implements HtmlAstVisitor {
       List<List<String>> targetMatchableAttrs,
       List<BoundElementOrDirectiveProperty> targetProps,
       List<VariableAst> targetVars) {
-    var templateBindingsSource = null;
+    var templateBindingsSource;
     if (attr.name == TEMPLATE_ATTR) {
       templateBindingsSource = attr.value;
     } else if (attr.name.startsWith(TEMPLATE_ATTR_PREFIX)) {
@@ -545,7 +540,7 @@ class TemplateParseVisitor implements HtmlAstVisitor {
       List<VariableAst> targetVars) {
     var attrName = this._normalizeAttributeName(attr.name);
     var attrValue = attr.value;
-    var bindParts = RegExpWrapper.firstMatch(BIND_NAME_REGEXP, attrName);
+    var bindParts = BIND_NAME_REGEXP.firstMatch(attrName);
     var hasBinding = false;
     if (bindParts != null) {
       hasBinding = true;
@@ -619,16 +614,16 @@ class TemplateParseVisitor implements HtmlAstVisitor {
         : attrName;
   }
 
-  _parseVariable(String identifier, String value, ParseSourceSpan sourceSpan,
-      List<VariableAst> targetVars) {
+  void _parseVariable(String identifier, String value,
+      ParseSourceSpan sourceSpan, List<VariableAst> targetVars) {
     if (identifier.indexOf("-") > -1) {
       this._reportError('''"-" is not allowed in variable names''', sourceSpan);
     }
     targetVars.add(new VariableAst(identifier, value, sourceSpan));
   }
 
-  _parseReference(String identifier, String value, ParseSourceSpan sourceSpan,
-      List<ElementOrDirectiveRef> targetRefs) {
+  void _parseReference(String identifier, String value,
+      ParseSourceSpan sourceSpan, List<ElementOrDirectiveRef> targetRefs) {
     if (identifier.indexOf("-") > -1) {
       this._reportError(
           '''"-" is not allowed in reference names''', sourceSpan);
@@ -636,7 +631,7 @@ class TemplateParseVisitor implements HtmlAstVisitor {
     targetRefs.add(new ElementOrDirectiveRef(identifier, value, sourceSpan));
   }
 
-  _parseProperty(
+  void _parseProperty(
       String name,
       String expression,
       ParseSourceSpan sourceSpan,
@@ -659,7 +654,7 @@ class TemplateParseVisitor implements HtmlAstVisitor {
     return true;
   }
 
-  _parsePropertyAst(
+  void _parsePropertyAst(
       String name,
       ASTWithSource ast,
       ParseSourceSpan sourceSpan,
@@ -670,7 +665,7 @@ class TemplateParseVisitor implements HtmlAstVisitor {
         .add(new BoundElementOrDirectiveProperty(name, ast, false, sourceSpan));
   }
 
-  _parseAssignmentEvent(
+  void _parseAssignmentEvent(
       String name,
       String expression,
       ParseSourceSpan sourceSpan,
@@ -680,22 +675,22 @@ class TemplateParseVisitor implements HtmlAstVisitor {
         sourceSpan, targetMatchableAttrs, targetEvents);
   }
 
-  _parseEvent(
+  void _parseEvent(
       String name,
       String expression,
       ParseSourceSpan sourceSpan,
       List<List<String>> targetMatchableAttrs,
       List<BoundEventAst> targetEvents) {
-    // long format: 'target: eventName'
-    var parts = splitAtColon(name, [null, name]);
-    var target = parts[0];
-    var eventName = parts[1];
+    if (name.contains(':')) {
+      this._reportError(
+          '":" is not allowed in event names: ${name}', sourceSpan);
+    }
     var ast = this._parseAction(expression, sourceSpan);
     targetMatchableAttrs.add([name, ast.source]);
-    targetEvents.add(new BoundEventAst(eventName, target, ast, sourceSpan));
+    targetEvents.add(new BoundEventAst(name, ast, sourceSpan));
   }
 
-  _parseLiteralAttr(String name, String value, ParseSourceSpan sourceSpan,
+  void _parseLiteralAttr(String name, String value, ParseSourceSpan sourceSpan,
       List<BoundElementOrDirectiveProperty> targetProps) {
     targetProps.add(new BoundElementOrDirectiveProperty(name,
         this._exprParser.wrapLiteralPrimitive(value, ""), true, sourceSpan));
@@ -704,11 +699,9 @@ class TemplateParseVisitor implements HtmlAstVisitor {
   List<CompileDirectiveMetadata> _parseDirectives(
       SelectorMatcher selectorMatcher, CssSelector elementCssSelector) {
     // Need to sort the directives so that we get consistent results throughout,
-
     // as selectorMatcher uses Maps inside.
-
     // Also dedupe directives as they might match more than one time!
-    var directives = ListWrapper.createFixedSize(this.directivesIndex.length);
+    var directives = new List(this.directivesIndex.length);
     selectorMatcher.match(elementCssSelector, (selector, directive) {
       directives[this.directivesIndex[directive]] = directive;
     });
@@ -728,7 +721,7 @@ class TemplateParseVisitor implements HtmlAstVisitor {
       ParseSourceSpan sourceSpan,
       List<ReferenceAst> targetReferences) {
     var matchedReferences = new Set<String>();
-    CompileDirectiveMetadata component = null;
+    CompileDirectiveMetadata component;
     var directiveAsts = directives.map((CompileDirectiveMetadata directive) {
       if (directive.isComponent) {
         component = directive;
@@ -755,14 +748,13 @@ class TemplateParseVisitor implements HtmlAstVisitor {
     }).toList();
     elementOrDirectiveRefs.forEach((elOrDirRef) {
       if (elOrDirRef.value.length > 0) {
-        if (!SetWrapper.has(matchedReferences, elOrDirRef.name)) {
+        if (!matchedReferences.contains(elOrDirRef.name)) {
           this._reportError(
               '''There is no directive with "exportAs" set to "${ elOrDirRef . value}"''',
               elOrDirRef.sourceSpan);
         }
-        ;
       } else if (component == null) {
-        var refToken = null;
+        var refToken;
         if (isTemplateElement) {
           refToken = identifierToken(Identifiers.TemplateRef);
         }
@@ -773,29 +765,28 @@ class TemplateParseVisitor implements HtmlAstVisitor {
     return directiveAsts;
   }
 
-  _createDirectiveHostPropertyAsts(
+  void _createDirectiveHostPropertyAsts(
       String elementName,
       Map<String, String> hostProps,
       ParseSourceSpan sourceSpan,
       List<BoundElementPropertyAst> targetPropertyAsts) {
     if (hostProps == null) return;
-    StringMapWrapper.forEach(hostProps, (String expression, String propName) {
+    hostProps.forEach((String propName, String expression) {
       var exprAst = this._parseBinding(expression, sourceSpan);
       targetPropertyAsts.add(this._createElementPropertyAst(
           elementName, propName, exprAst, sourceSpan));
     });
   }
 
-  _createDirectiveHostEventAsts(Map<String, String> hostListeners,
+  void _createDirectiveHostEventAsts(Map<String, String> hostListeners,
       ParseSourceSpan sourceSpan, List<BoundEventAst> targetEventAsts) {
     if (hostListeners == null) return;
-    StringMapWrapper.forEach(hostListeners,
-        (String expression, String propName) {
+    hostListeners.forEach((String propName, String expression) {
       this._parseEvent(propName, expression, sourceSpan, [], targetEventAsts);
     });
   }
 
-  _createDirectivePropertyAsts(
+  void _createDirectivePropertyAsts(
       Map<String, String> directiveProperties,
       List<BoundElementOrDirectiveProperty> boundProps,
       List<BoundDirectivePropertyAst> targetBoundDirectiveProps) {
@@ -808,8 +799,7 @@ class TemplateParseVisitor implements HtmlAstVisitor {
           boundPropsByName[boundProp.name] = boundProp;
         }
       });
-      StringMapWrapper.forEach(directiveProperties,
-          (String elProp, String dirProp) {
+      directiveProperties.forEach((String dirProp, String elProp) {
         var boundProp = boundPropsByName[elProp];
         // Bindings are optional, so this binding only needs to be set up if an expression is given.
         if (boundProp != null) {
@@ -842,7 +832,7 @@ class TemplateParseVisitor implements HtmlAstVisitor {
 
   BoundElementPropertyAst _createElementPropertyAst(
       String elementName, String name, AST ast, ParseSourceSpan sourceSpan) {
-    var unit = null;
+    var unit;
     var bindingType;
     String boundPropertyName;
     TemplateSecurityContext securityContext;
@@ -853,10 +843,8 @@ class TemplateParseVisitor implements HtmlAstVisitor {
           this._schemaRegistry.securityContext(elementName, boundPropertyName);
       bindingType = PropertyBindingType.Property;
       if (!this._schemaRegistry.hasProperty(elementName, boundPropertyName)) {
-        this._reportError(
-            'Can\'t bind to \'${ boundPropertyName}\' since it isn\'t a known '
-            'native property',
-            sourceSpan);
+        _reportUnknownPropertyOrDirective(
+            elementName, boundPropertyName, sourceSpan);
       }
     } else {
       if (parts[0] == ATTRIBUTE_PREFIX) {
@@ -898,6 +886,22 @@ class TemplateParseVisitor implements HtmlAstVisitor {
         boundPropertyName, bindingType, securityContext, ast, unit, sourceSpan);
   }
 
+  void _reportUnknownPropertyOrDirective(String elementName,
+      String boundPropertyName, ParseSourceSpan sourceSpan) {
+    // Very common mistake is to type [ngClass] as [ngclass]
+    if (boundPropertyName == 'ngclass') {
+      _reportError(
+          "Please use camel-case ngClass instead of ngclass in your template",
+          sourceSpan);
+      return;
+    }
+    _reportError(
+        "Can't bind to '${boundPropertyName}' since it isn't a known "
+        "native property or known directive. Please fix typo or add to "
+        "directives list.",
+        sourceSpan);
+  }
+
   List<String> _findComponentDirectiveNames(List<DirectiveAst> directives) {
     List<String> componentTypeNames = [];
     directives.forEach((directive) {
@@ -909,7 +913,7 @@ class TemplateParseVisitor implements HtmlAstVisitor {
     return componentTypeNames;
   }
 
-  _assertOnlyOneComponent(
+  void _assertOnlyOneComponent(
       List<DirectiveAst> directives, ParseSourceSpan sourceSpan) {
     var componentTypeNames = this._findComponentDirectiveNames(directives);
     if (componentTypeNames.length > 1) {
@@ -919,8 +923,10 @@ class TemplateParseVisitor implements HtmlAstVisitor {
     }
   }
 
-  _assertNoComponentsNorElementBindingsOnTemplate(List<DirectiveAst> directives,
-      List<BoundElementPropertyAst> elementProps, ParseSourceSpan sourceSpan) {
+  void _assertNoComponentsNorElementBindingsOnTemplate(
+      List<DirectiveAst> directives,
+      List<BoundElementPropertyAst> elementProps,
+      ParseSourceSpan sourceSpan) {
     List<String> componentTypeNames =
         this._findComponentDirectiveNames(directives);
     if (componentTypeNames.length > 0) {
@@ -935,20 +941,18 @@ class TemplateParseVisitor implements HtmlAstVisitor {
     });
   }
 
-  _assertAllEventsPublishedByDirectives(
+  void _assertAllEventsPublishedByDirectives(
       List<DirectiveAst> directives, List<BoundEventAst> events) {
     var allDirectiveEvents = new Set<String>();
     directives.forEach((directive) {
-      StringMapWrapper.forEach(directive.directive.outputs,
-          (String eventName, _) {
+      directive.directive.outputs.values.forEach((eventName) {
         allDirectiveEvents.add(eventName);
       });
     });
     events.forEach((event) {
-      if (event.target != null ||
-          !SetWrapper.has(allDirectiveEvents, event.name)) {
+      if (!allDirectiveEvents.contains(event.name)) {
         this._reportError(
-            '''Event binding ${ event . fullName} not emitted by any directive on an embedded template''',
+            'Event binding ${event.name} not emitted by any directive on an embedded template',
             event.sourceSpan);
       }
     });
@@ -1018,18 +1022,18 @@ class BoundElementOrDirectiveProperty {
   bool isLiteral;
   ParseSourceSpan sourceSpan;
   BoundElementOrDirectiveProperty(
-      this.name, this.expression, this.isLiteral, this.sourceSpan) {}
+      this.name, this.expression, this.isLiteral, this.sourceSpan);
 }
 
 class ElementOrDirectiveRef {
   String name;
   String value;
   ParseSourceSpan sourceSpan;
-  ElementOrDirectiveRef(this.name, this.value, this.sourceSpan) {}
+  ElementOrDirectiveRef(this.name, this.value, this.sourceSpan);
 }
 
 List<String> splitClasses(String classAttrValue) {
-  return StringWrapper.split(classAttrValue.trim(), new RegExp(r'\s+'));
+  return jsSplit(classAttrValue.trim(), (new RegExp(r'\s+')));
 }
 
 class ElementContext {
@@ -1040,7 +1044,7 @@ class ElementContext {
   static ElementContext create(bool isTemplateElement,
       List<DirectiveAst> directives, ProviderElementContext providerContext) {
     var matcher = new SelectorMatcher();
-    var wildcardNgContentIndex = null;
+    int wildcardNgContentIndex;
     var component = directives.firstWhere(
         (directive) => directive.directive.isComponent,
         orElse: () => null);
@@ -1048,7 +1052,7 @@ class ElementContext {
       var ngContentSelectors = component.directive.template.ngContentSelectors;
       for (var i = 0; i < ngContentSelectors.length; i++) {
         var selector = ngContentSelectors[i];
-        if (StringWrapper.equals(selector, "*")) {
+        if (selector == "*") {
           wildcardNgContentIndex = i;
         } else {
           matcher.addSelectables(CssSelector.parse(ngContentSelectors[i]), i);
@@ -1060,13 +1064,13 @@ class ElementContext {
   }
 
   ElementContext(this.isTemplateElement, this._ngContentIndexMatcher,
-      this._wildcardNgContentIndex, this.providerContext) {}
+      this._wildcardNgContentIndex, this.providerContext);
   num findNgContentIndex(CssSelector selector) {
     var ngContentIndices = [];
     this._ngContentIndexMatcher.match(selector, (selector, ngContentIndex) {
       ngContentIndices.add(ngContentIndex);
     });
-    ListWrapper.sort(ngContentIndices);
+    ngContentIndices.sort();
     if (_wildcardNgContentIndex != null) {
       ngContentIndices.add(_wildcardNgContentIndex);
     }
@@ -1111,13 +1115,13 @@ List<dynamic/*=T*/ > removeDuplicates/*<T>*/(List<dynamic/*=T*/ > items) {
   items.forEach((item) {
     var hasMatch = res.where((r) {
       if (r is CompilePipeMetadata) {
-        CompilePipeMetadata rMeta = r as CompilePipeMetadata;
+        CompilePipeMetadata rMeta = r;
         CompilePipeMetadata itemMeta = item as CompilePipeMetadata;
         return rMeta.type.name == itemMeta.type.name &&
             rMeta.type.moduleUrl == itemMeta.type.moduleUrl &&
             rMeta.type.runtime == itemMeta.type.runtime;
       } else if (r is CompileDirectiveMetadata) {
-        CompileDirectiveMetadata rMeta = r as CompileDirectiveMetadata;
+        CompileDirectiveMetadata rMeta = r;
         CompileDirectiveMetadata itemMeta = item as CompileDirectiveMetadata;
         return rMeta.type.name == itemMeta.type.name &&
             rMeta.type.moduleUrl == itemMeta.type.moduleUrl &&

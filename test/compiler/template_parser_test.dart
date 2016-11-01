@@ -1,21 +1,23 @@
 @TestOn('browser')
 library angular2.test.compiler.template_parser_test;
 
-import "package:angular2/testing_internal.dart";
-import "package:angular2/src/core/di.dart" show provide;
-import "package:angular2/src/core/console.dart" show Console;
-import "test_bindings.dart" show TEST_PROVIDERS;
-import "package:angular2/src/compiler/template_parser.dart"
-    show TemplateParser, splitClasses, TEMPLATE_TRANSFORMS;
 import "package:angular2/src/compiler/compile_metadata.dart";
-import "package:angular2/src/compiler/template_ast.dart";
 import "package:angular2/src/compiler/identifiers.dart"
     show identifierToken, Identifiers;
 import "package:angular2/src/compiler/schema/element_schema_registry.dart"
     show ElementSchemaRegistry;
-import "schema_registry_mock.dart" show MockSchemaRegistry;
-import "expression_parser/unparser.dart" show Unparser;
+import "package:angular2/src/compiler/template_ast.dart";
+import "package:angular2/src/compiler/template_parser.dart"
+    show TemplateParser, splitClasses;
+import "package:angular2/src/core/di.dart" show provide;
+import "package:angular2/testing_internal.dart";
+import 'package:func/func.dart';
+import "package:logging/logging.dart";
 import 'package:test/test.dart';
+
+import "expression_parser/unparser.dart" show Unparser;
+import "schema_registry_mock.dart" show MockSchemaRegistry;
+import "test_bindings.dart" show TEST_PROVIDERS;
 
 var expressionUnparser = new Unparser();
 var someModuleUrl = "package:someModule";
@@ -24,13 +26,14 @@ var MOCK_SCHEMA_REGISTRY = [
       useValue: new MockSchemaRegistry(
           {"invalidProp": false}, {"mappedAttr": "mappedProp"}))
 ];
-main() {
+void main() {
   var ngIf;
-  var parse;
+  Func3Opt1<String, List<CompileDirectiveMetadata>, List<CompilePipeMetadata>,
+      List<TemplateAst>> parse;
   ArrayConsole console = new ArrayConsole();
 
   var commonSetup = () async {
-    await inject([TemplateParser], (parser) {
+    await inject([TemplateParser], (TemplateParser parser) {
       var component = CompileDirectiveMetadata.create(
           selector: "root",
           type: new CompileTypeMetadata(moduleUrl: someModuleUrl, name: "Root"),
@@ -49,45 +52,11 @@ main() {
       };
     });
   };
-  group("TemplateParser template transform", () {
-    group("single", () {
-      test("should transform TemplateAST", () async {
-        beforeEachProviders(() => [
-              TEST_PROVIDERS,
-              MOCK_SCHEMA_REGISTRY,
-              provide(TEMPLATE_TRANSFORMS,
-                  useValue: new FooAstTransformer(), multi: true)
-            ]);
-        await commonSetup();
-        expect(humanizeTplAst(parse("<div>", [])), [
-          [ElementAst, "foo"]
-        ]);
-      });
-    });
-
-    group("multiple", () {
-      test("should compose transformers", () async {
-        beforeEachProviders(() => [
-              TEST_PROVIDERS,
-              MOCK_SCHEMA_REGISTRY,
-              provide(TEMPLATE_TRANSFORMS,
-                  useValue: new FooAstTransformer(), multi: true),
-              provide(TEMPLATE_TRANSFORMS,
-                  useValue: new BarAstTransformer(), multi: true)
-            ]);
-        await commonSetup();
-        expect(humanizeTplAst(parse("<div>", [])), [
-          [ElementAst, "bar"]
-        ]);
-      });
-    });
-  });
   group("TemplateParser", () {
     setUp(() async {
       beforeEachProviders(() => [
             TEST_PROVIDERS,
             MOCK_SCHEMA_REGISTRY,
-            provide(Console, useValue: console)
           ]);
       await commonSetup();
     });
@@ -278,10 +247,11 @@ main() {
       });
       group("events", () {
         test("should parse bound events with a target", () {
-          expect(humanizeTplAst(parse("<div (window:event)=\"v\">", [])), [
-            [ElementAst, "div"],
-            [BoundEventAst, "event", "window", "v"]
-          ]);
+          expect(
+              () => parse('<div (window:event)="v">', []),
+              throwsWith('Template parse errors:\n'
+                  '":" is not allowed in event names: window:event '
+                  '("<div [ERROR ->](window:event)="v">"): TestComp@0:5'));
         });
         test(
             'should parse bound events via (...) and not report them '
@@ -528,6 +498,7 @@ main() {
           }
           return token;
         }
+
         CompileDiDependencyMetadata createDep(String value) {
           var isOptional = false;
           if (value.startsWith("optional:")) {
@@ -550,6 +521,7 @@ main() {
               isSelf: isSelf,
               isHost: isHost);
         }
+
         CompileProviderMetadata createProvider(String token,
             {bool multi: false, List<String> deps: const []}) {
           return new CompileProviderMetadata(
@@ -559,6 +531,7 @@ main() {
                   name: '''provider${ nextProviderId ++}'''),
               deps: deps.map(createDep).toList());
         }
+
         CompileDirectiveMetadata createDir(String selector,
             {List<CompileProviderMetadata> providers: null,
             List<CompileProviderMetadata> viewProviders: null,
@@ -580,6 +553,7 @@ main() {
                       new CompileQueryMetadata(selectors: [createToken(value)]))
                   .toList());
         }
+
         setUp(() {
           nextProviderId = 0;
         });
@@ -1138,6 +1112,7 @@ main() {
             template: new CompileTemplateMetadata(
                 ngContentSelectors: ngContentSelectors));
       }
+
       CompileDirectiveMetadata createDir(String selector) {
         return CompileDirectiveMetadata.create(
             selector: selector,
@@ -1145,6 +1120,7 @@ main() {
                 moduleUrl: someModuleUrl,
                 name: '''SomeDir${ compCounter ++}'''));
       }
+
       group("project text nodes", () {
         test("should project text nodes with wildcard selector", () {
           expect(
@@ -1389,7 +1365,8 @@ main() {
             () => parse("<div [invalidProp]></div>", []),
             throwsWith('Template parse errors:\n'
                 'Can\'t bind to \'invalidProp\' since it isn\'t a known '
-                'native property ("<div [ERROR ->][invalidProp]></div>"): '
+                'native property or known directive. Please fix typo or add '
+                'to directives list. ("<div [ERROR ->][invalidProp]></div>"): '
                 'TestComp@0:5'));
       });
       test("should report errors in expressions", () {
@@ -1638,14 +1615,6 @@ main() {
               [VariableAst, "a", "b", "let-a=\"b\""]
             ]);
       });
-      test("should support events", () {
-        expect(
-            humanizeTplAstSourceSpans(parse("<div (window:event)=\"v\">", [])),
-            [
-              [ElementAst, "div", "<div (window:event)=\"v\">"],
-              [BoundEventAst, "event", "window", "v", "(window:event)=\"v\""]
-            ]);
-      });
       test("should support element property", () {
         expect(humanizeTplAstSourceSpans(parse("<div [someProp]=\"v\">", [])), [
           [ElementAst, "div", "<div [someProp]=\"v\">"],
@@ -1762,7 +1731,7 @@ List<dynamic> humanizeTplAstSourceSpans(List<TemplateAst> templateAsts) {
 class TemplateHumanizer implements TemplateAstVisitor {
   bool includeSourceSpan;
   List<dynamic> result = [];
-  TemplateHumanizer(this.includeSourceSpan) {}
+  TemplateHumanizer(this.includeSourceSpan);
   dynamic visitNgContent(NgContentAst ast, dynamic context) {
     var res = [NgContentAst];
     this.result.add(this._appendContext(ast, res));
@@ -1809,7 +1778,7 @@ class TemplateHumanizer implements TemplateAstVisitor {
     var res = [
       BoundEventAst,
       ast.name,
-      ast.target,
+      null, // TODO: remove
       expressionUnparser.unparse(ast.handler)
     ];
     this.result.add(this._appendContext(ast, res));
@@ -2018,18 +1987,29 @@ bool compareProviderList(List a, List b) {
   return true;
 }
 
-class ArrayConsole implements Console {
+class ArrayConsole {
   List<String> logs = [];
   List<String> warnings = [];
-  log(String msg) {
+
+  ArrayConsole() {
+    Logger.root.onRecord.listen((LogRecord rec) {
+      if (rec.level == Level.WARNING) {
+        warn(rec.message);
+      } else {
+        log(rec.message);
+      }
+    });
+  }
+
+  void log(String msg) {
     this.logs.add(msg);
   }
 
-  warn(String msg) {
+  void warn(String msg) {
     this.warnings.add(msg);
   }
 
-  clear() {
+  void clear() {
     logs.clear();
     warnings.clear();
   }
